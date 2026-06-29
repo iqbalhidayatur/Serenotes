@@ -1,4 +1,4 @@
-import { getAllNotes, deleteNote } from "../services/noteService.js";
+import { getAllNotes, deleteNote, togglePin } from "../services/noteService.js";
 
 const notesContainer = document.getElementById("notesContainer");
 
@@ -22,6 +22,15 @@ document.addEventListener("click", (event) => {
         return;
     }
 
+    // Klik star — toggle pin
+    const starBtn = event.target.closest(".btn-star-note");
+    if (starBtn) {
+        event.stopPropagation();
+        togglePin(starBtn.dataset.id);
+        renderNotes();
+        return;
+    }
+
     // Klik card → navigasi ke detail
     const card = event.target.closest(".note-card");
     if (!card) return;
@@ -29,7 +38,12 @@ document.addEventListener("click", (event) => {
 });
 
 function renderNotes() {
-    const notes = getAllNotes();
+    const notes = getAllNotes().sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.date) - new Date(a.date);
+    });
+
     notesContainer.innerHTML = "";
 
     if (notes.length === 0) {
@@ -56,9 +70,9 @@ function createCard(note) {
                     <h5>${note.category}</h5>
                 </div>
                 <div class="toggle-card d-flex gap-2 align-items-center">
-                    ${note.isPinned
-                        ? `<i class="bi bi-star-fill text-warning"></i>`
-                        : `<i class="bi bi-star"></i>`}
+                    <button class="btn-star-note" data-id="${note.id}" title="Pin note">
+                        <i class="bi ${note.isPinned ? 'bi-star-fill text-warning' : 'bi-star text-secondary'}"></i>
+                    </button>
                     <button
                         class="btn-delete-note"
                         data-id="${note.id}"

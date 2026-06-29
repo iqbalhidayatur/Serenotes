@@ -89,7 +89,7 @@ h1 {
 
 h3 {
     font-size: 1.2rem;
-    line-height: 1;
+    line-height: 1.5;
     color: #4F46E5;
     font-weight: 600;
 }
@@ -97,6 +97,10 @@ h3 {
 h5 {
     font-size: 0.8rem;
     background-color: transparent;
+    color: #1f2937;
+}
+
+.category-card h5 {
     color: #f9f9ff;
 }
 
@@ -209,6 +213,21 @@ p {
     bottom: 50px;
     right: 10px;
     z-index: 10;
+}
+
+.btn-star-note {
+    border: none;
+    background: transparent;
+    padding: 4px 6px;
+    border-radius: 8px;
+    font-size: 1rem;
+    line-height: 1;
+    transition: .2s;
+    cursor: pointer;
+}
+
+.btn-star-note:hover {
+    background: #fef9c3;
 }
 
 /* Dashboard */
@@ -2285,4 +2304,327 @@ mark{
 .btn-delete-note:active {
     color: #dc2626;
     background: #fee2e2;
+}
+
+/* ===========================
+   Board / Kanban
+=========================== */
+
+.board-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #fff;
+    border-radius: 20px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.06);
+    cursor: pointer;
+    transition: .2s;
+}
+
+.board-card:hover { transform: translateY(-2px); }
+
+.board-card-icon {
+    width: 48px; height: 48px;
+    background: #ebe9ff;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; color: #4F46E5;
+    flex-shrink: 0;
+}
+
+.board-card-info { flex: 1; }
+.board-card-info h5 { margin: 0; font-size: 1rem; font-weight: 600; }
+.board-card-info span { font-size: .8rem; color: #9ca3af; }
+
+.fab-btn {
+    position: fixed;
+    bottom: 84px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #4F46E5;
+    color: #fff;
+    border: none;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(79,70,229,.4);
+    z-index: 100;
+    transition: .2s;
+}
+
+.fab-btn:hover, .fab-btn:active {
+    background: #4338ca;
+    transform: scale(1.08);
+}
+
+.btn-delete-board {
+    border: none; background: transparent;
+    color: #d1d5db; font-size: 1rem; padding: 6px;
+    border-radius: 8px; transition: .2s;
+}
+.btn-delete-board:hover { color: #dc2626; background: #fee2e2; }
+
+.board-empty {
+    text-align: center; padding: 60px 0; color: #9ca3af;
+}
+.board-empty i { font-size: 3rem; display: block; margin-bottom: 12px; }
+
+/* Kanban board */
+.kanban-wrap {
+    display: flex;
+    gap: 16px;
+    padding: 20px 16px 100px;
+    overflow-x: auto;
+    min-height: calc(100vh - 60px);
+    align-items: flex-start;
+}
+
+.kanban-col {
+    min-width: 260px;
+    max-width: 260px;
+    background: #f3f4f6;
+    border-radius: 20px;
+    padding: 16px;
+    flex-shrink: 0;
+}
+
+.kanban-col-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.kanban-col-name { font-weight: 700; font-size: .95rem; color: #374151; }
+.kanban-col-count {
+    background: #e5e7eb; color: #6b7280;
+    border-radius: 999px; padding: 2px 10px;
+    font-size: .75rem; font-weight: 600;
+}
+
+.kanban-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    cursor: pointer;
+    position: relative;
+    transition: .2s;
+}
+.kanban-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.1); }
+
+.kanban-card-title { font-weight: 600; font-size: .92rem; color: #1f2937; margin-bottom: 6px; }
+.kanban-card-desc  { font-size: .8rem; color: #6b7280; margin-bottom: 8px; }
+
+.kanban-card-checklist {
+    font-size: .78rem; color: #4F46E5;
+    display: flex; align-items: center; gap: 5px;
+}
+
+.kanban-card-delete {
+    position: absolute; top: 10px; right: 10px;
+    border: none; background: transparent;
+    color: #d1d5db; font-size: .9rem; padding: 2px 5px;
+    border-radius: 6px; transition: .2s; line-height: 1;
+}
+.kanban-card-delete:hover { color: #dc2626; background: #fee2e2; }
+
+.kanban-add-card {
+    width: 100%;
+    border: 2px dashed #d1d5db;
+    background: transparent;
+    border-radius: 12px;
+    padding: 10px;
+    color: #9ca3af;
+    font-size: .85rem;
+    font-weight: 500;
+    transition: .2s;
+    margin-top: 6px;
+}
+.kanban-add-card:hover { border-color: #4F46E5; color: #4F46E5; background: #ebe9ff; }
+
+/* Card detail sheet */
+.card-detail-sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-radius: 28px 28px 0 0;
+    padding: 16px 24px 48px;
+    z-index: 1050;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform .3s cubic-bezier(.32,.72,0,1);
+}
+
+#cardDetailModal.show .card-detail-sheet { transform: translateY(0); }
+#cardDetailModal.show .modal-backdrop-custom { opacity: 1; }
+
+.card-detail-title {
+    width: 100%;
+    border: none;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1f2937;
+    padding: 8px 0;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 14px;
+    outline: none;
+}
+
+.card-detail-desc {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: .88rem;
+    color: #374151;
+    resize: none;
+    min-height: 80px;
+    margin-bottom: 20px;
+    outline: none;
+    font-family: inherit;
+}
+
+.card-detail-move { margin-bottom: 20px; }
+.card-detail-move label { font-size: .78rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px; }
+
+.card-detail-cols { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.move-btn {
+    border: 2px solid #e5e7eb;
+    background: #fff;
+    border-radius: 999px;
+    padding: 6px 16px;
+    font-size: .82rem;
+    font-weight: 500;
+    color: #6b7280;
+    transition: .2s;
+}
+.move-btn.active, .move-btn:hover {
+    border-color: #4F46E5;
+    background: #4F46E5;
+    color: #fff;
+}
+
+.card-detail-checklist h6 {
+    font-size: .82rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: #9ca3af; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
+}
+
+.checklist-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.checklist-item input[type="checkbox"] {
+    width: 18px; height: 18px;
+    accent-color: #4F46E5;
+    flex-shrink: 0; cursor: pointer;
+}
+
+.checklist-item span { flex: 1; font-size: .9rem; color: #374151; }
+.checklist-item span.done { text-decoration: line-through; color: #9ca3af; }
+
+.checklist-delete {
+    border: none; background: transparent;
+    color: #d1d5db; font-size: .9rem; padding: 4px;
+    border-radius: 6px; transition: .2s; line-height: 1;
+}
+.checklist-delete:hover { color: #dc2626; }
+
+.checklist-add {
+    display: flex; gap: 8px; margin-top: 12px;
+}
+
+.checklist-add input {
+    flex: 1;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: .88rem;
+    outline: none;
+    font-family: inherit;
+}
+
+.checklist-add button {
+    width: 38px; height: 38px;
+    border: none;
+    background: #4F46E5;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+
+/* ===========================
+   Hub Page
+=========================== */
+
+.hub-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.hub-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #fff;
+    border-radius: 20px;
+    padding: 18px 20px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.06);
+    text-decoration: none;
+    color: inherit;
+    transition: .2s;
+}
+
+.hub-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(0,0,0,.1);
+    color: inherit;
+}
+
+.hub-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.hub-info {
+    flex: 1;
+}
+
+.hub-info h5 {
+    margin: 0 0 3px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.hub-info p {
+    margin: 0;
+    font-size: .82rem;
+    color: #9ca3af;
+}
+
+.hub-arrow {
+    color: #d1d5db;
+    font-size: 1rem;
 }

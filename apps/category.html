@@ -4,6 +4,11 @@
 
     <meta charset="UTF-8">
 
+    <script>
+        const t = localStorage.getItem("serenotes_theme") || "light";
+        document.documentElement.setAttribute("data-theme", t);
+    </script>
+    
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -65,15 +70,6 @@
         </h3>
 
     </div>
-
-    <button
-        class="btn border-0 p-0"
-    >
-        <a href="search.html">
-            <i class="bi bi-search fs-4"></i>
-        </a>
-
-    </button>
 
 </header>
 
@@ -146,31 +142,21 @@
 
 </main>
 
-<div class="add-note">
-
-    <a href="add-note.html">
-
-        <i class="bi bi-plus-lg"></i>
-
-    </a>
-
-</div>
+<button class="fab-btn" onclick="window.location.href='add-note.html'">
+    <i class="bi bi-plus-lg"></i>
+</button>
 
     <nav class="bottom-nav">
         <a href="dashboard.html" class="nav-item">
             <i class="bi bi-house-fill"></i>
         </a>
 
-        <a href="calendar.html" class="nav-item">
-            <i class="bi bi-calendar-fill"></i>
+        <a href="hub.html" class="nav-item">
+            <i class="bi bi-grid-fill"></i>
         </a>
 
         <a href="category.html" class="nav-item active">
             <i class="bi bi-list-ul"></i>
-        </a>
-        
-        <a href="reminder.html" class="nav-item">
-            <i class="bi bi-bell-fill"></i>
         </a>
         
         <a href="settings.html" class="nav-item">

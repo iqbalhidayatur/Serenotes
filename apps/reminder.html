@@ -5,6 +5,11 @@
 
     <meta charset="UTF-8">
 
+    <script>
+        const t = localStorage.getItem("serenotes_theme") || "light";
+        document.documentElement.setAttribute("data-theme", t);
+    </script>
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -198,16 +203,12 @@
             <i class="bi bi-house-fill"></i>
         </a>
 
-        <a href="calendar.html" class="nav-item">
-            <i class="bi bi-calendar-fill"></i>
+        <a href="hub.html" class="nav-item">
+            <i class="bi bi-grid-fill"></i>
         </a>
 
         <a href="category.html" class="nav-item">
             <i class="bi bi-list-ul"></i>
-        </a>
-        
-        <a href="reminder.html" class="nav-item active">
-            <i class="bi bi-bell-fill"></i>
         </a>
         
         <a href="settings.html" class="nav-item">
