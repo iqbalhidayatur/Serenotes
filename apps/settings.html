@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Settings | Serenotes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style/app.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+
+<header class="border-bottom">
+    <div class="container d-flex align-items-center gap-3">
+        <div>
+            <h3 class="mb-1">Settings</h3>
+            <p class="text-secondary">Customize Serenotes</p>
+        </div>
+    </div>
+</header>
+
+<main class="container py-4">
+
+    <!-- Profile Card -->
+    <div class="settings-profile d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-person-circle"></i>
+        <div>
+            <h4 id="profileName">User</h4>
+            <p id="profileGreet">Welcome back!</p>
+        </div>
+    </div>
+
+    <section class="mb-4">
+        <h6 class="settings-title">GENERAL</h6>
+        <div class="settings-group">
+            <a href="category-settings.html" class="settings-item">
+                <div class="settings-icon"><i class="bi bi-folder2-open"></i></div>
+                <div class="settings-content">
+                    <h5>Categories</h5>
+                    <small>Manage categories & subcategories</small>
+                </div>
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            <a href="reminder.html" class="settings-item">
+                <div class="settings-icon"><i class="bi bi-bell"></i></div>
+                <div class="settings-content">
+                    <h5>Reminder</h5>
+                    <small>Manage all reminders</small>
+                </div>
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <h6 class="settings-title">APPEARANCE</h6>
+        <div class="settings-group">
+            <div class="settings-item">
+                <div class="settings-icon"><i class="bi bi-moon-stars"></i></div>
+                <div class="settings-content">
+                    <h5>Dark Mode</h5>
+                    <small>Coming Soon</small>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" disabled>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <h6 class="settings-title">DATA</h6>
+        <div class="settings-group">
+            <button id="backupBtn" class="settings-item w-100">
+                <div class="settings-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+                <div class="settings-content">
+                    <h5>Backup Notes</h5>
+                    <small>Export all notes as JSON</small>
+                </div>
+            </button>
+            <button id="clearDataBtn" class="settings-item w-100 text-danger">
+                <div class="settings-icon text-danger"><i class="bi bi-trash3"></i></div>
+                <div class="settings-content">
+                    <h5 class="text-danger">Clear Data</h5>
+                    <small>Delete all notes permanently</small>
+                </div>
+            </button>
+        </div>
+    </section>
+
+    <section>
+        <h6 class="settings-title">ABOUT</h6>
+        <div class="settings-group">
+            <div class="settings-item">
+                <div class="settings-icon"><i class="bi bi-info-circle"></i></div>
+                <div class="settings-content">
+                    <h5>Serenotes</h5>
+                    <small>Version 1.0.0</small>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="about-version">Serenotes v1.0.0</div>
+
+</main>
+
+<nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item"><i class="bi bi-house-fill"></i></a>
+    <a href="calendar.html" class="nav-item"><i class="bi bi-calendar-fill"></i></a>
+    <a href="category.html" class="nav-item"><i class="bi bi-list-ul"></i></a>
+
+        <a href="reminder.html" class="nav-item">
+            <i class="bi bi-bell-fill"></i>
+        </a>
+        
+    <a href="settings.html" class="nav-item active"><i class="bi bi-gear-fill"></i></a>
+</nav>
+
+<script type="module" src="js/pages/settings.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

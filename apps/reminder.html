@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Reminder | Serenotes
+    </title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="style/app.css"
+    >
+
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Serenotes">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="style/assets/icon-192.png">
+    <link rel="icon" type="image/png" href="style/assets/icon-192.png">
+</head>
+
+<body>
+
+<header class="border-bottom">
+
+    <div class="container d-flex justify-content-between align-items-center">
+
+        <div>
+
+            <h3 class="mb-1">
+                Reminders
+            </h3>
+
+            <p class="text-secondary">
+                Never miss anything.
+            </p>
+
+        </div>
+
+        <button
+            id="todayBtn"
+            class="btn btn-light"
+        >
+
+            <i class="bi bi-calendar-day"></i>
+
+        </button>
+
+    </div>
+
+</header>
+
+<main class="container py-4">
+
+    <div
+        id="statsCard"
+        class="reminder-summary mb-4"
+    >
+
+        <div>
+
+            <h2 id="todayCount">
+
+                0
+
+            </h2>
+
+            <span>
+
+                Today
+
+            </span>
+
+        </div>
+
+        <div>
+
+            <h2 id="upcomingCount">
+
+                0
+
+            </h2>
+
+            <span>
+
+                Upcoming
+
+            </span>
+
+        </div>
+
+        <div>
+
+            <h2 id="completedCount">
+
+                0
+
+            </h2>
+
+            <span>
+
+                Completed
+
+            </span>
+
+        </div>
+
+    </div>
+
+    <section class="mb-5">
+
+        <h5 class="section-title">
+
+            Today
+
+        </h5>
+
+        <div id="todayList"></div>
+
+    </section>
+
+    <section class="mb-5">
+
+        <h5 class="section-title">
+
+            Upcoming
+
+        </h5>
+
+        <div id="upcomingList"></div>
+
+    </section>
+
+    <section class="mb-5">
+
+        <h5 class="section-title">
+
+            Completed
+
+        </h5>
+
+        <div id="completedList"></div>
+
+    </section>
+
+    <section>
+
+        <h5 class="section-title">
+
+            Overdue
+
+        </h5>
+
+        <div id="overdueList"></div>
+
+    </section>
+
+</main>
+
+<nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item">
+            <i class="bi bi-house-fill"></i>
+        </a>
+
+        <a href="calendar.html" class="nav-item">
+            <i class="bi bi-calendar-fill"></i>
+        </a>
+
+        <a href="category.html" class="nav-item">
+            <i class="bi bi-list-ul"></i>
+        </a>
+        
+        <a href="reminder.html" class="nav-item active">
+            <i class="bi bi-bell-fill"></i>
+        </a>
+        
+        <a href="settings.html" class="nav-item">
+            <i class="bi bi-gear-fill"></i>
+        </a>
+    </nav>
+
+<script
+    type="module"
+    src="js/pages/reminder.js"
+></script>
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+></script>
+
+</body>
+
+</html>
