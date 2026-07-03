@@ -1,4 +1,12 @@
 import {
+
+    initTheme
+
+} from "../services/themeService.js";
+
+initTheme();
+
+import {
     getAllNotes
 } from "../services/noteService.js";
 

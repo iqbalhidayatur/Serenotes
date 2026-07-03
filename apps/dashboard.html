@@ -27,7 +27,7 @@
 </head>
 <body>
     
-    <header class="d-flex justify-content-between align-items-center border-bottom">
+    <header class="d-flex justify-content-between align-items-center">
 
         <div class="d-flex align-items-center gap-3">
 
@@ -51,28 +51,91 @@
 
     <main class="p-2">
 
-        <div class="recent pt-3 d-flex flex-row justify-content-space-between align-items-center w-100">
-            <h1 class="w-100">Recent Notes</h1>
-            <div class="filter d-flex justify-content-end align-items-center w-100 gap-2">
-                <i class="bi bi-filter"></i>
-                <i class="bi bi-app"></i>
+        <!-- Overlay -->
+        <div class="overlay" id="filterOverlay"></div>
+
+        <!-- Filter Popup -->
+        <div class="filter-popup" id="filterPopup">
+
+            <div class="filter-header">
+                <h5>Filter Notes</h5>
+                <button id="closeFilter">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div class="filter-body">
+
+                <div class="filter-group">
+                    <label>From Date</label>
+                    <input type="date" id="filterStartDate">
+                </div>
+
+                <div class="filter-group">
+                    <label>To Date</label>
+                    <input type="date" id="filterEndDate">
+                </div>
+
+                <div class="filter-group">
+                    <label>Folder</label>
+                    <select id="filterFolder">
+                        <option value="">All Folders</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Tag</label>
+                    <select id="filterTag">
+                        <option value="">All Tags</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="filter-footer">
+                <button class="btn-reset" id="resetFilter">
+                    Reset
+                </button>
+
+                <button class="btn-apply" id="applyFilter">
+                    Apply Filter
+                </button>
+            </div>
+
+        </div>
+
+        <div class="recent pt-3 d-flex flex-column justify-content-space-between align-items-center w-100">
+            
+            <div class="w-100 d-flex justify-content-start align-items-center">
+                <h1 class="w-100">Recent Notes</h1>
+            </div>
+            <div class="btn-container d-flex justify-content-end align-items-center w-100 gap-2">
+
+                <div class="filter">
+                    <button class="btn-filter" id="btnFilter">
+                        <i class="bi bi-filter"></i>
+                    </button>            
+                </div>
+
             </div>
         </div>
 
         <div class="notes-card">
 
-            <div
-                id="notesContainer"
-                class="card-container col p-3"
-            >
+            <div class="recent-slider" id="recentContainer"></div>
+
+            <div class="all-notes pt-4">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1>All Notes</h1>
+                </div>
+
+                <div id="notesContainer" class="p-2"></div>
 
             </div>
 
         </div>
 
-        <button class="fab-btn" onclick="window.location.href='add-note.html'">
-            <i class="bi bi-plus-lg"></i>
-        </button>
     </main>
 
     <nav class="bottom-nav">
@@ -82,6 +145,10 @@
 
         <a href="hub.html" class="nav-item">
             <i class="bi bi-grid-fill"></i>
+        </a>
+
+        <a href="add-note.html" class="nav-item add-note">
+            <i class="bi bi-plus-circle-fill"></i>
         </a>
 
         <a href="category.html" class="nav-item">

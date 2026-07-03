@@ -5,42 +5,53 @@ import {
 const RECENT_KEY =
     "serenotes_recent_searches";
 
-export function search(query){
+export function search(query) {
 
-    if(!query){
+    if (!query) return [];
 
-        return [];
+    const q = query.toLowerCase().trim();
+    const terms = q.split(/\s+/);
 
-    }
+    const scored = getAllNotes().map(note => {
 
-    query = query.toLowerCase();
-
-    return getAllNotes().filter(note=>{
-
-        const title =
-            (note.title || "")
-            .toLowerCase();
-
-        const content =
-            (note.content || "")
-            .toLowerCase();
-
-        const tags =
-            (note.tags || [])
+        const title   = (note.title || "").toLowerCase();
+        const content = (note.blocks || [])
+            .map(b => (b.text || "").replace(/<[^>]+>/g, ""))
             .join(" ")
             .toLowerCase();
+        const tags    = (note.tags || []).join(" ").toLowerCase();
+        const cat     = (note.category || "").toLowerCase();
 
-        return (
+        let score = 0;
 
-            title.includes(query) ||
+        terms.forEach(term => {
 
-            content.includes(query) ||
+            // Title — bobot tertinggi
+            if (title === term)          score += 100; // exact match
+            if (title.startsWith(term))  score += 60;
+            if (title.includes(term))    score += 40;
 
-            tags.includes(query)
+            // Tag — bobot tinggi
+            if (tags.split(" ").includes(term)) score += 50;
+            else if (tags.includes(term))        score += 30;
 
-        );
+            // Category
+            if (cat.includes(term)) score += 20;
+
+            // Content — bobot rendah
+            const occurrences = (content.match(new RegExp(term, "g")) || []).length;
+            score += occurrences * 5;
+
+        });
+
+        return { note, score };
 
     });
+
+    return scored
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(item => item.note);
 
 }
 

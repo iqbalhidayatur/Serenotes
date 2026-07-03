@@ -1,13 +1,23 @@
 import {
-    getCategories,
-    getSubcategories,
-    addCategory,
-    addSubcategory
-} from "../services/categoryService.js";
+
+    initTheme
+
+} from "../services/themeService.js";
+
+initTheme();
+
+import {
+    getChildFolders,
+    getBreadcrumb,
+    getFolderById,
+    createFolder
+} from "../services/folderService.js";
 
 import {
     createNote,
     getNoteById,
+    getNotesByFolder,
+    mergeNote,
     updateNote
 } from "../services/noteService.js";
 
@@ -23,28 +33,79 @@ import {
 // ── State ──────────────────────────────────────────────
 const params      = new URLSearchParams(window.location.search);
 const noteId      = params.get("id");
+const urlParentId   = params.get("parentId");
+const urlParentType = params.get("parentType");
 let editingNote   = null;
 let existingMedia = [];
 let newAttachments= [];
+
+let selectedFolderId = null;
+
+let currentLocation = {
+
+    parentId: null,
+
+    parentType: null
+
+};
 
 // ── DOM refs ───────────────────────────────────────────
 const form               = document.getElementById("noteForm");
 const titleInput         = document.getElementById("title");
 const contentInput       = document.getElementById("content");
 const noteDateInput      = document.getElementById("noteDate");
-const categorySelect     = document.getElementById("category");
-const subcategorySelect  = document.getElementById("subcategory");
-const newCategoryInput   = document.getElementById("newCategory");
-const newSubcategoryInput= document.getElementById("newSubcategory");
+const folderPickerBtn    = document.getElementById("folderPickerBtn");
+const folderPickerLabel  = document.getElementById("folderPickerLabel");
+const folderBreadcrumb   = document.getElementById("folderBreadcrumb");
+const folderPickerList   = document.getElementById("folderPickerList");
+const chooseNoFolderBtn  = document.getElementById("chooseNoFolderBtn");
+const chooseThisFolderBtn= document.getElementById("chooseThisFolderBtn");
+const newFolderInline    = document.getElementById("newFolderInline");
+const newFolderInlineBtn = document.getElementById("newFolderInlineBtn");
+const folderPickerModal  = new bootstrap.Modal(
+    document.getElementById("folderPickerModal")
+);
 const reminderSwitch     = document.getElementById("reminderSwitch");
 const reminderFields     = document.getElementById("reminderFields");
 const reminderDate       = document.getElementById("reminderDate");
 const attachmentInput    = document.getElementById("attachment");
 const attachmentPreview  = document.getElementById("attachmentPreview");
+const noteNameInput =
+document.getElementById("noteName");
+
+const noteSelect =
+document.getElementById("noteSelect");
+
+const btnNewNote =
+document.getElementById("btnNewNote");
+
+const btnCancelNewNote =
+document.getElementById("btnCancelNewNote");
 
 // ── Init ───────────────────────────────────────────────
-renderCategories();
 setDefaultDateTime();
+
+if (urlParentId && !noteId) {
+
+    const parentNote = getNoteById(urlParentId);
+
+    selectedFolderId = null;
+
+    currentLocation = {
+        parentId: urlParentId,
+        parentType: urlParentType || "note"
+    };
+
+    if (parentNote) {
+        folderPickerLabel.innerHTML = `<i class="bi bi-file-earmark me-2"></i>${parentNote.noteName || parentNote.title || "Note"}`;
+        folderPickerBtn.disabled = true;
+    }
+
+} else {
+
+    restoreLastContext();
+
+}
 
 if (noteId) {
     editingNote   = getNoteById(noteId);
@@ -53,13 +114,20 @@ if (noteId) {
 
 if (editingNote) {
     loadNote();
+    refreshNoteNameUI();
 }
 
 // ── Event listeners ────────────────────────────────────
-categorySelect    .addEventListener("change",  handleCategoryChange);
-subcategorySelect .addEventListener("change",  handleSubcategoryChange);
-newCategoryInput  .addEventListener("keydown", saveNewCategory);
-newSubcategoryInput.addEventListener("keydown",saveNewSubcategory);
+folderPickerBtn    .addEventListener("click", openFolderPicker);
+chooseNoFolderBtn  .addEventListener("click", chooseNoFolder);
+chooseThisFolderBtn.addEventListener("click", chooseCurrentFolder);
+newFolderInlineBtn .addEventListener("click", createInlineFolder);
+newFolderInline    .addEventListener("keydown", event=>{
+    if (event.key === "Enter") {
+        event.preventDefault();
+        createInlineFolder();
+    }
+});
 reminderSwitch    .addEventListener("change",  toggleReminder);
 form              .addEventListener("submit",  handleSubmit);
 
@@ -142,120 +210,291 @@ function bindAttachmentEvents() {
     });
 }
 
-// ── Categories ─────────────────────────────────────────
-function renderCategories(selected = null) {
-    const categories = getCategories();
+// ── Folder picker ────────────────────────────────────────
+function openFolderPicker() {
+    const current = selectedFolderId
+        ? getFolderById(selectedFolderId)
+        : null;
 
-    categorySelect.innerHTML = "";
+    currentLocation = current
+        ? { parentId: current.id, parentType: "folder" }
+        : { parentId: null, parentType: null };
 
-    categories.forEach(category => {
-        const opt = document.createElement("option");
-        opt.value            = category.id;
-        opt.dataset.name     = category.name;
-        opt.textContent      = category.name;
-        categorySelect.appendChild(opt);
+    renderFolderPicker();
+    folderPickerModal.show();
+}
+
+function restoreLastContext(){
+
+    const last = getLastContext();
+
+    if(!last) return;
+
+    const note = getNoteById(last.noteId);
+
+    if(!note){
+
+        localStorage.removeItem(
+            "serenotes_last_context"
+        );
+
+        return;
+
+    }
+
+    selectedFolderId = last.folderId;
+
+    const folder = getFolderById(selectedFolderId);
+
+    currentLocation = {
+
+        parentId: selectedFolderId,
+
+        parentType: folder
+            ? folder.parentType
+            : null
+
+    };
+
+    updateFolderPickerLabel();
+
+    refreshNoteNameUI();
+
+    requestAnimationFrame(() => {
+
+        noteSelect.value = last.noteId;
+
     });
 
-    const customOpt = document.createElement("option");
-    customOpt.value       = "custom";
-    customOpt.textContent = "+ Add New Category";
-    categorySelect.appendChild(customOpt);
-
-    const activeId = selected || (categories[0]?.id ?? null);
-    if (activeId) {
-        categorySelect.value = activeId;
-        renderSubcategories(activeId);
-    }
 }
 
-function renderSubcategories(categoryId) {
-    const subcategories = getSubcategories(categoryId);
+function refreshNoteNameUI() {
 
-    subcategorySelect.innerHTML = "";
+    noteSelect.innerHTML = "";
 
-    subcategories.forEach(subcategory => {
-        const opt = document.createElement("option");
-        opt.value       = subcategory.name;
-        opt.textContent = subcategory.name;
-        subcategorySelect.appendChild(opt);
+    if (!selectedFolderId) {
+
+        noteNameInput.classList.remove("d-none");
+
+        noteSelect.classList.add("d-none");
+
+        btnNewNote.classList.add("d-none");
+
+        btnCancelNewNote.classList.add("d-none");
+
+        return;
+
+    }
+
+    const notes =
+        getNotesByFolder(selectedFolderId);
+
+    if (notes.length === 0) {
+
+        noteNameInput.classList.remove("d-none");
+
+        noteSelect.classList.add("d-none");
+
+        btnNewNote.classList.add("d-none");
+
+        btnCancelNewNote.classList.add("d-none");
+
+        return;
+
+    }
+
+    notes.forEach(note => {
+
+        noteSelect.innerHTML += `
+
+            <option value="${note.id}">
+
+                ${note.noteName}
+
+            </option>
+
+        `;
+
     });
 
-    const customOpt = document.createElement("option");
-    customOpt.value       = "custom";
-    customOpt.textContent = "+ Add New Subcategory";
-    subcategorySelect.appendChild(customOpt);
+    noteNameInput.classList.add("d-none");
+
+    noteSelect.classList.remove("d-none");
+
+    btnNewNote.classList.remove("d-none");
+
+    btnCancelNewNote.classList.add("d-none");
+
 }
 
-function handleCategoryChange() {
-    if (categorySelect.value === "custom") {
-        newCategoryInput.classList.remove("d-none");
-        subcategorySelect.classList.add("d-none");
-        newSubcategoryInput.classList.remove("d-none");
-        subcategorySelect.innerHTML = "";
-        return;
-    }
+btnNewNote.addEventListener("click", () => {
 
-    newCategoryInput.classList.add("d-none");
-    subcategorySelect.classList.remove("d-none");
-    newSubcategoryInput.classList.add("d-none");
+    noteSelect.classList.add("d-none");
 
-    renderSubcategories(categorySelect.value);
+    btnNewNote.classList.add("d-none");
+
+    noteNameInput.classList.remove("d-none");
+
+    btnCancelNewNote.classList.remove("d-none");
+
+    noteNameInput.value = "";
+
+    noteNameInput.focus();
+
+    saveLastContext(
+
+    selectedFolderId,
+
+    null
+
+);
+
+});
+
+btnCancelNewNote.addEventListener("click", () => {
+
+    noteNameInput.classList.add("d-none");
+
+    btnCancelNewNote.classList.add("d-none");
+
+    noteSelect.classList.remove("d-none");
+
+    btnNewNote.classList.remove("d-none");
+
+});
+
+function renderFolderPicker() {
+    // Breadcrumb
+    const path = getBreadcrumb(
+        currentLocation.parentId
+    );
+
+    folderBreadcrumb.innerHTML = `
+        <li class="breadcrumb-item">
+            <a href="#" data-nav="root">
+                <i class="bi bi-house"></i>
+            </a>
+        </li>
+        ${path.map(folder => `
+            <li class="breadcrumb-item">
+                <a href="#" data-nav="${folder.id}">
+                    ${folder.name}
+                </a>
+            </li>
+        `).join("")}
+    `;
+
+    folderBreadcrumb.querySelectorAll("[data-nav]").forEach(link => {
+        link.addEventListener("click", event => {
+            event.preventDefault();
+            if (link.dataset.nav === "root") {
+                currentLocation = { parentId: null, parentType: null };
+            } else {
+                const folder = getFolderById(link.dataset.nav);
+                if (!folder) return;
+                currentLocation = { parentId: folder.id, parentType: "folder" };
+            }
+            renderFolderPicker();
+        });
+    });
+
+    // Daftar subfolder di level ini
+    const children = getChildFolders(
+    currentLocation.parentId,
+    currentLocation.parentType
+)
+
+    folderPickerList.innerHTML = children.length
+        ? children.map(folder => `
+            <button
+                type="button"
+                class="folder-picker-item"
+                data-id="${folder.id}"
+            >
+                <i class="${folder.icon || "bi bi-folder"}" style="color:${folder.color || "#4F46E5"}"></i>
+                <span>${folder.name}</span>
+                <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+        `).join("")
+        : `<div class="text-muted small py-2">No subfolders here.</div>`;
+
+    folderPickerList.querySelectorAll("[data-id]").forEach(item => {
+        item.addEventListener("click", () => {
+            const folder = getFolderById(item.dataset.id);
+            if (!folder) return;
+
+            currentLocation = {
+                parentId: folder.id,
+                parentType: "folder"
+            };
+
+            renderFolderPicker();
+        });
+    });
+
+    newFolderInline.value = "";
 }
 
-function handleSubcategoryChange() {
-    if (subcategorySelect.value === "custom") {
-        newSubcategoryInput.classList.remove("d-none");
-        return;
-    }
-    newSubcategoryInput.classList.add("d-none");
-}
-
-function saveNewCategory(event) {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-
-    const value = newCategoryInput.value.trim();
+function createInlineFolder() {
+    const value = newFolderInline.value.trim();
     if (!value) return;
 
-    if (!addCategory(value)) {
-        alert("Category already exists.");
+    const folder =
+    createFolder(
+        value,
+        currentLocation.parentId,
+        currentLocation.parentType
+    )
+
+    if (!folder) {
+        alert("A folder with that name already exists here.");
         return;
     }
 
-    const category = getCategories().find(item => item.name === value);
+    // Langsung masuk ke folder baru yang dibuat
+    currentLocation = {
+        parentId: folder.id,
+        parentType: "folder"
+    };
 
-    renderCategories(category.id);
-
-    newCategoryInput.value = "";
-    newCategoryInput.classList.add("d-none");
-    subcategorySelect.classList.remove("d-none");
-
-    subcategorySelect.innerHTML = "";
-    const opt = document.createElement("option");
-    opt.value       = "custom";
-    opt.textContent = "+ Add New Subcategory";
-    subcategorySelect.appendChild(opt);
-    subcategorySelect.value = "custom";
-    newSubcategoryInput.classList.remove("d-none");
+    renderFolderPicker();
 }
 
-function saveNewSubcategory(event) {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
+function chooseNoFolder() {
+    selectedFolderId = null;
+    currentLocation = {
+        parentId: null,
+        parentType: null
+    };
+    updateFolderPickerLabel();
+    folderPickerModal.hide();
+    refreshNoteNameUI();
+}
 
-    const value = newSubcategoryInput.value.trim();
-    if (!value) return;
+function chooseCurrentFolder(){
 
-    if (!addSubcategory(categorySelect.value, value)) {
-        alert("Subcategory already exists.");
+    selectedFolderId = currentLocation.parentId;
+
+    updateFolderPickerLabel();
+
+    refreshNoteNameUI();
+
+    folderPickerModal.hide();
+
+}
+
+function updateFolderPickerLabel() {
+    if (!selectedFolderId) {
+        folderPickerLabel.innerHTML =
+            `<i class="bi bi-file-earmark me-2"></i>No Folder`;
         return;
     }
 
-    renderSubcategories(categorySelect.value);
+    const path = getBreadcrumb(selectedFolderId);
+    const pathText = path.map(folder => folder.name).join(" / ");
 
-    subcategorySelect.value = value;
-    newSubcategoryInput.value = "";
-    newSubcategoryInput.classList.add("d-none");
+    folderPickerLabel.innerHTML =
+        `<i class="bi bi-folder2-open me-2"></i>${pathText}`;
 }
 
 // ── Reminder ───────────────────────────────────────────
@@ -284,18 +523,28 @@ function loadNote() {
     document.getElementById("headerSaveBtn").textContent= "Update";
     document.getElementById("bottomSaveBtn").textContent= "Update Note";
 
+    noteNameInput.value = editingNote.noteName || "";
     titleInput.value    = editingNote.title   || "";
-    contentInput.value  = editingNote.content || "";
+    contentInput.value =
+        editingNote.blocks
+            ?.map(block => block.text)
+            .join("\n\n") || "";
     noteDateInput.value = editingNote.date.substring(0, 16);
 
-    const categories = getCategories();
-    const category   = categories.find(item => item.name === editingNote.category);
+    selectedFolderId = editingNote.folderId || null;
+    updateFolderPickerLabel();
 
-    if (category) {
-        categorySelect.value = category.id;
-        renderSubcategories(category.id);
-        subcategorySelect.value = editingNote.subcategory;
-    }
+    const folder = getFolderById(selectedFolderId);
+
+    currentLocation = {
+
+        parentId: selectedFolderId,
+
+        parentType: folder
+            ? folder.parentType
+            : null
+
+    };
 
     if (editingNote.reminder?.enabled) {
         reminderSwitch.checked = true;
@@ -323,15 +572,39 @@ async function handleSubmit(event) {
         }
     }
 
-    // FIX: safely read category name from selected option's data-name attribute
-    const selectedOption  = categorySelect.selectedOptions[0];
-    const categoryName    = selectedOption?.dataset.name || selectedOption?.textContent?.trim() || "";
+    // Nama folder terpilih (leaf) dipakai sebagai label
+    // category lama, supaya halaman lain (calendar, search,
+    // reminder, badge di note-detail) tetap tampil normal.
+    const selectedFolder = selectedFolderId
+        ? getFolderById(selectedFolderId)
+        : null;
+
+    const noteName = noteNameInput.classList.contains("d-none")
+    ? getNoteById(noteSelect.value)?.noteName || ""
+    : noteNameInput.value.trim();
 
     const noteData = {
+        noteName: noteName,
         title:      titleInput.value.trim(),
-        content:    contentInput.value.trim(),
-        category:   categoryName,
-        subcategory:subcategorySelect.value === "custom" ? "" : subcategorySelect.value,
+        blocks: [
+            {
+                id: crypto.randomUUID(),
+                type: "section",
+                text: titleInput.value.trim()
+            },
+            {
+                id: crypto.randomUUID(),
+                type: "paragraph",
+                text: contentInput.value.trim()
+            }
+        ],
+        folderId:    selectedFolderId ?? null,
+        parentId:    selectedFolderId ?? currentLocation.parentId ?? null,
+        parentType:  selectedFolderId
+                        ? "folder"
+                        : (currentLocation.parentType ?? null),
+        category:   selectedFolder?.name || "",
+        subcategory:"",
         date:       noteDateInput.value,
         reminder:   reminderSwitch.checked
                         ? createReminder(reminderDate.value || noteDateInput.value)
@@ -342,9 +615,45 @@ async function handleSubmit(event) {
     };
 
     if (editingNote) {
+
         updateNote(editingNote.id, noteData);
-    } else {
-        createNote(noteData);
+
+        saveLastContext(
+            selectedFolderId,
+            editingNote.id
+        );
+
+    }
+    else if (noteNameInput.classList.contains("d-none")) {
+
+        mergeNote(
+            noteSelect.value,
+            [
+                {
+                    id: crypto.randomUUID(),
+                    type: "section",
+                    text: noteData.title
+                },
+                ...noteData.blocks
+            ]
+        );
+
+        saveLastContext(
+            selectedFolderId,
+            noteSelect.value
+        );
+
+    }
+    else {
+
+        const newNote =
+            createNote(noteData);
+
+        saveLastContext(
+            selectedFolderId,
+            newNote.id
+        );
+
     }
 
     window.location.href = "dashboard.html";
@@ -362,4 +671,36 @@ function formatFileSize(bytes) {
     if (bytes < 1024)        return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function saveLastContext(folderId, noteId){
+
+    localStorage.setItem(
+
+        "serenotes_last_context",
+
+        JSON.stringify({
+
+            folderId,
+
+            noteId
+
+        })
+
+    );
+
+}
+
+function getLastContext(){
+
+    return JSON.parse(
+
+        localStorage.getItem(
+
+            "serenotes_last_context"
+
+        ) || "null"
+
+    );
+
 }

@@ -30,12 +30,12 @@
 </head>
 <body>
 
-<header class="border-bottom d-flex justify-content-between align-items-center p-3">
+<header class="d-flex justify-content-between align-items-center p-3">
 
     <div class="d-flex align-items-center gap-3">
-        <a href="dashboard.html" class="text-dark text-decoration-none">
-            <i class="bi bi-arrow-left fs-3"></i>
-        </a>
+        <button id="backBtn" class="header-btn" onclick="window.history.back()">
+            <i class="bi bi-arrow-left"></i>
+        </button>
 
         <h3 class="m-0 text-dark fw-semibold" id="pageTitle">
             Add Note
@@ -60,40 +60,63 @@
         <div class="mb-4">
 
             <label class="form-label">
-                Category
+                Folder
             </label>
 
-            <select
-                id="category"
-                class="form-select rounded-4 p-3"
-            ></select>
-
-            <input
-                type="text"
-                id="newCategory"
-                class="form-control rounded-4 mt-2 d-none"
-                placeholder="New category..."
+            <button
+                type="button"
+                id="folderPickerBtn"
+                class="btn btn-outline-secondary rounded-4 p-3 w-100 d-flex justify-content-between align-items-center"
             >
+
+                <span id="folderPickerLabel">
+                    <i class="bi bi-file-earmark me-2"></i>No Folder
+                </span>
+
+                <i class="bi bi-chevron-right"></i>
+
+            </button>
 
         </div>
 
-        <div class="mb-4">
+        <div class="mb-3">
 
             <label class="form-label">
-                Subcategory
+                Note Name
             </label>
 
-            <select
-                id="subcategory"
-                class="form-select rounded-4 p-3"
-            ></select>
+            <div class="d-flex gap-2">
 
-            <input
-                type="text"
-                id="newSubcategory"
-                class="form-control rounded-4 mt-2 d-none"
-                placeholder="New subcategory..."
-            >
+                <select
+                    id="noteSelect"
+                    class="form-select d-none">
+                </select>
+
+                <input
+                    type="text"
+                    id="noteName"
+                    class="form-control"
+                    placeholder="Enter note name">
+
+                <button
+                    type="button"
+                    id="btnNewNote"
+                    class="btn btn-outline-primary d-none">
+
+                    + New
+
+                </button>
+
+            </div>
+
+            <button
+                type="button"
+                id="btnCancelNewNote"
+                class="btn btn-link p-0 mt-2 d-none">
+
+                Cancel
+
+            </button>
 
         </div>
 
@@ -247,8 +270,86 @@
 
 </main>
 
-<script type="module" src="js/pages/add-note.js"></script>
+<div class="modal fade" id="folderPickerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content rounded-4">
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+                    Choose Folder
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <nav aria-label="breadcrumb">
+                    <ol
+                        class="breadcrumb flex-wrap"
+                        id="folderBreadcrumb"
+                    ></ol>
+                </nav>
+
+                <button
+                    type="button"
+                    id="chooseNoFolderBtn"
+                    class="btn btn-sm btn-outline-secondary w-100 rounded-4 mb-3"
+                >
+                    <i class="bi bi-file-earmark"></i>
+                    Save without folder
+                </button>
+
+                <div
+                    id="folderPickerList"
+                    class="folder-picker-list d-flex flex-column gap-2"
+                ></div>
+
+                <div class="input-group mt-3">
+
+                    <input
+                        type="text"
+                        id="newFolderInline"
+                        class="form-control rounded-start-4"
+                        placeholder="New folder name..."
+                    >
+
+                    <button
+                        type="button"
+                        id="newFolderInlineBtn"
+                        class="btn btn-primary rounded-end-4"
+                    >
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    id="chooseThisFolderBtn"
+                    class="btn btn-primary rounded-4 w-100"
+                >
+                    Save In This Folder
+                </button>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="js/pages/add-note.js"></script>
 
 </body>
 </html>

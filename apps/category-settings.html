@@ -62,7 +62,7 @@
 
 <body>
 
-<header class="border-bottom">
+<header class="">
 
     <div class="container d-flex align-items-center gap-3">
 
@@ -79,13 +79,13 @@
 
             <h3 class="mb-1">
 
-                Categories
+                Folders
 
             </h3>
 
             <p class="text-secondary">
 
-                Manage categories & subcategories
+                Manage your nested folders
 
             </p>
 
@@ -104,7 +104,7 @@
 
         <i class="bi bi-plus-lg"></i>
 
-        Add Category
+        Add Folder
 
     </button>
 
@@ -128,7 +128,7 @@
 
                 <h5>
 
-                    New Category
+                    New Folder
 
                 </h5>
 
@@ -142,19 +142,18 @@
 
                     class="form-control mb-3"
 
-                    placeholder="Category name"
+                    placeholder="Folder name"
 
                 >
 
-                <input
-
-                    id="subcategoryName"
-
-                    class="form-control"
-
-                    placeholder="First subcategory"
-
+                <select
+                    id="parentFolderSelect"
+                    class="form-select"
                 >
+
+                    <option value="">Top Level</option>
+
+                </select>
 
             </div>
 

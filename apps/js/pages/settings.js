@@ -1,3 +1,15 @@
+import {
+
+    initTheme,
+
+    getTheme,
+
+    toggleTheme
+
+} from "../services/themeService.js";
+
+initTheme();
+
 import { clearNotes } from "../services/noteService.js";
 import { clearMedia } from "../services/mediaService.js";
 
@@ -6,10 +18,31 @@ const clearDataBtn= document.getElementById("clearDataBtn");
 const profileName = document.getElementById("profileName");
 const profileGreet= document.getElementById("profileGreet");
 
+const darkModeToggle =
+    document.getElementById(
+        "darkModeToggle"
+    );
+
 // Load saved user name
 const userName = localStorage.getItem("serenotes_user") || "User";
 if (profileName)  profileName.textContent  = userName;
 if (profileGreet) profileGreet.textContent = `Welcome back, ${userName}! 👋`;
+
+darkModeToggle.checked =
+
+    getTheme() === "dark";
+
+darkModeToggle.addEventListener(
+
+    "change",
+
+    ()=>{
+
+        toggleTheme();
+
+    }
+
+);
 
 backupBtn.addEventListener("click", handleBackup);
 clearDataBtn.addEventListener("click", handleClear);

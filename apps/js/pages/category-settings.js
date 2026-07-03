@@ -1,20 +1,16 @@
 import {
+    initTheme
+} from "../services/themeService.js";
 
-    getCategories,
+initTheme();
 
-    addCategory,
-
-    addSubcategory,
-
-    deleteCategory,
-
-    deleteSubcategory,
-
-    toggleCategoryVisibility,
-
-    getCategoryCount
-
-} from "../services/categoryService.js";
+import {
+    getFlatFolderList,
+    getFolderNoteCount,
+    createFolder,
+    renameFolder,
+    deleteFolder
+} from "../services/folderService.js";
 
 const categoryList =
     document.getElementById("categoryList");
@@ -28,51 +24,74 @@ const saveCategoryBtn =
 const categoryName =
     document.getElementById("categoryName");
 
-const subcategoryName =
-    document.getElementById("subcategoryName");
+const parentFolderSelect =
+    document.getElementById("parentFolderSelect");
 
 const modal = new bootstrap.Modal(
-
     document.getElementById("categoryModal")
-
 );
 
-renderCategories();
+renderFolders();
 
 addCategoryBtn.addEventListener(
-
     "click",
-
     ()=>{
 
-        categoryName.value="";
+        categoryName.value = "";
 
-        subcategoryName.value="";
+        renderParentFolderOptions();
 
         modal.show();
 
     }
-
 );
 
 saveCategoryBtn.addEventListener(
-
     "click",
-
-    saveCategory
-
+    saveFolder
 );
 
-function renderCategories(){
+function renderParentFolderOptions(){
 
-    categoryList.innerHTML="";
+    const folders = getFlatFolderList();
 
-    const categories =
-        getCategories();
+    parentFolderSelect.innerHTML = `
+        <option value="">Top Level</option>
+    `;
 
-    categories.forEach(category=>{
+    folders.forEach(folder=>{
 
-        categoryList.innerHTML+=createCard(category);
+        parentFolderSelect.innerHTML += `
+            <option value="${folder.id}">
+                ${"— ".repeat(folder.depth)}${folder.name}
+            </option>
+        `;
+
+    });
+
+}
+
+function renderFolders(){
+
+    categoryList.innerHTML = "";
+
+    const folders = getFlatFolderList();
+
+    if(!folders.length){
+
+        categoryList.innerHTML = `
+            <p class="text-secondary text-center py-4">
+                No folders yet. Create one above.
+            </p>
+        `;
+
+        return;
+
+    }
+
+    folders.forEach(folder=>{
+
+        categoryList.innerHTML += createCard(folder);
 
     });
 
@@ -80,13 +99,14 @@ function renderCategories(){
 
 }
 
-function createCard(category){
+function createCard(folder){
 
     return `
 
     <div
-        class="category-setting-card mb-4"
-        data-id="${category.id}"
+        class="category-setting-card mb-3"
+        data-id="${folder.id}"
+        style="margin-left:${folder.depth * 20}px"
     >
 
         <div
@@ -97,15 +117,15 @@ function createCard(category){
 
                 <h5>
 
-                    <i class="${category.icon}"></i>
+                    <i class="${folder.icon}" style="color:${folder.color}"></i>
 
-                    ${category.name}
+                    ${folder.name}
 
                 </h5>
 
                 <small>
 
-                    ${getCategoryCount(category.name)}
+                    ${getFolderNoteCount(folder.id, true)}
 
                     Notes
 
@@ -113,76 +133,33 @@ function createCard(category){
 
             </div>
 
-            <div>
-
-                <div class="form-check form-switch">
-
-                    <input
-
-                        class="form-check-input visibility"
-
-                        type="checkbox"
-
-                        ${category.visible ? "checked" : ""}
-
-                    >
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="mt-3">
-
-            ${category.subcategories.map(sub=>`
-
-                <span class="subcategory-chip">
-
-                    ${sub.name}
-
-                    <button
-
-                        class="delete-sub"
-
-                        data-category="${category.id}"
-
-                        data-sub="${sub.id}"
-
-                    >
-
-                        <i class="bi bi-x"></i>
-
-                    </button>
-
-                </span>
-
-            `).join("")}
-
         </div>
 
         <div
-            class="d-flex gap-2 mt-4"
+            class="d-flex gap-2 mt-3"
         >
 
             <button
-
-                class="btn btn-outline-primary add-sub"
-
-                data-id="${category.id}"
-
+                class="btn btn-outline-primary btn-sm add-sub"
+                data-id="${folder.id}"
             >
 
-                Add Subcategory
+                Add Subfolder
 
             </button>
 
             <button
+                class="btn btn-outline-secondary btn-sm rename-folder"
+                data-id="${folder.id}"
+            >
 
-                class="btn btn-outline-danger delete-category"
+                Rename
 
-                data-id="${category.id}"
+            </button>
 
+            <button
+                class="btn btn-outline-danger btn-sm delete-category"
+                data-id="${folder.id}"
             >
 
                 Delete
@@ -200,51 +177,23 @@ function createCard(category){
 function bindEvents(){
 
     document
-        .querySelectorAll(".visibility")
-        .forEach((item,index)=>{
-
-            item.addEventListener("change",()=>{
-
-                const category =
-                    getCategories()[index];
-
-                toggleCategoryVisibility(
-
-                    category.id
-
-                );
-
-            });
-
-        });
-
-    document
         .querySelectorAll(".delete-category")
         .forEach(button=>{
 
             button.addEventListener("click",()=>{
 
-                if(
+                const noteCount =
+                    getFolderNoteCount(button.dataset.id, true);
 
-                    !confirm(
+                const message = noteCount > 0
+                    ? `Delete this folder and its ${noteCount} note(s) inside (including subfolders)? This cannot be undone.`
+                    : "Delete this empty folder?";
 
-                        "Delete this category?"
+                if(!confirm(message)) return;
 
-                    )
+                deleteFolder(button.dataset.id);
 
-                ){
-
-                    return;
-
-                }
-
-                deleteCategory(
-
-                    button.dataset.id
-
-                );
-
-                renderCategories();
+                renderFolders();
 
             });
 
@@ -256,43 +205,40 @@ function bindEvents(){
 
             button.addEventListener("click",()=>{
 
-                const value = prompt(
-
-                    "Subcategory name"
-
-                );
+                const value = prompt("Subfolder name");
 
                 if(!value) return;
 
-                addSubcategory(
+                if(!createFolder(value, button.dataset.id)){
+                    alert("A folder with that name already exists here.");
+                    return;
+                }
 
-                    button.dataset.id,
-
-                    value
-
-                );
-
-                renderCategories();
+                renderFolders();
 
             });
 
         });
 
     document
-        .querySelectorAll(".delete-sub")
+        .querySelectorAll(".rename-folder")
         .forEach(button=>{
 
             button.addEventListener("click",()=>{
 
-                deleteSubcategory(
+                const folder = getFlatFolderList()
+                    .find(item => item.id === button.dataset.id);
 
-                    button.dataset.category,
+                const value = prompt("Rename folder", folder?.name || "");
 
-                    button.dataset.sub
+                if(!value) return;
 
-                );
+                if(!renameFolder(button.dataset.id, value)){
+                    alert("A folder with that name already exists here.");
+                    return;
+                }
 
-                renderCategories();
+                renderFolders();
 
             });
 
@@ -300,44 +246,24 @@ function bindEvents(){
 
 }
 
-function saveCategory(){
+function saveFolder(){
 
     const name =
         categoryName.value.trim();
 
-    if(name===""){
-
+    if(name === ""){
         return;
-
     }
 
-    addCategory(name);
+    const parentId = parentFolderSelect.value || null;
 
-    if(
-
-        subcategoryName.value.trim()
-
-    ){
-
-        const category =
-            getCategories().find(item=>
-
-                item.name===name
-
-            );
-
-        addSubcategory(
-
-            category.id,
-
-            subcategoryName.value.trim()
-
-        );
-
+    if(!createFolder(name, parentId)){
+        alert("A folder with that name already exists here.");
+        return;
     }
 
     modal.hide();
 
-    renderCategories();
+    renderFolders();
 
 }

@@ -59,18 +59,13 @@
 
 <body>
 
-<header class="d-flex justify-content-between align-items-center border-bottom">
+<header class="d-flex justify-content-between align-items-center">
 
     <div class="d-flex align-items-center gap-3">
 
-        <a
-            href="dashboard.html"
-            class="text-decoration-none text-dark"
-        >
-
-            <i class="bi bi-arrow-left fs-3"></i>
-
-        </a>
+        <button id="backBtn" class="header-btn" onclick="window.history.back()">
+            <i class="bi bi-arrow-left"></i>
+        </button>
 
         <h3 class="m-0">
 
@@ -120,64 +115,29 @@
 
     </div>
 
-    <!-- Suggestions -->
-
+    <!-- Tag Cloud -->
     <section class="mb-4">
+        <h6 class="section-title">Tags</h6>
+        <div id="tagCloud" class="d-flex flex-wrap gap-2 mb-3"></div>
 
-        <h6 class="section-title">
+        <!-- Active tag filters -->
+        <div id="tagFilterWrap" class="search-tag-filter"></div>
+    </section>
 
-            Suggestions
-
-        </h6>
-
-        <div
-            id="suggestionContainer"
-            class="d-flex flex-wrap gap-2"
-        >
-
-            <button
-                class="chip"
-                data-keyword="Work"
-            >
-
-                Work
-
-            </button>
-
-            <button
-                class="chip"
-                data-keyword="Personal"
-            >
-
-                Personal
-
-            </button>
-
-            <button
-                class="chip"
-                data-keyword="Ideas"
-            >
-
-                Ideas
-
-            </button>
-
-            <button
-                class="chip"
-                data-keyword="Archive"
-            >
-
-                Archive
-
-            </button>
-
+    <!-- Suggestions -->
+    <section class="mb-4 d-none">
+        <h6 class="section-title">Suggestions</h6>
+        <div id="suggestionContainer" class="d-flex flex-wrap gap-2">
+            <button class="chip" data-keyword="Work">Work</button>
+            <button class="chip" data-keyword="Personal">Personal</button>
+            <button class="chip" data-keyword="Ideas">Ideas</button>
+            <button class="chip" data-keyword="Archive">Archive</button>
         </div>
-
     </section>
 
     <!-- Recent Search -->
 
-    <section class="mb-4">
+    <section class="mb-4 d-none">
 
         <div
             class="d-flex justify-content-between align-items-center mb-3"
@@ -210,18 +170,20 @@
     </section>
 
     <!-- Results -->
-
     <section>
 
-        <h6 class="section-title mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="section-title m-0">Results</h6>
+            <select id="sortSelect" class="sort-select">
+                <option value="relevance">Most Relevant</option>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="az">A → Z</option>
+                <option value="za">Z → A</option>
+            </select>
+        </div>
 
-            Results
-
-        </h6>
-
-        <div
-            id="searchResult"
-        >
+        <div id="searchResult">
 
             <div
                 class="text-center py-5 text-secondary"

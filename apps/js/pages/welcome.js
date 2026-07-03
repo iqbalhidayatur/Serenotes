@@ -1,3 +1,11 @@
+import {
+
+    initTheme
+
+} from "../services/themeService.js";
+
+initTheme();
+
 const input = document.getElementById("nameInput");
 const nextBtn   = document.querySelector(".btn-primary");
 

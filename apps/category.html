@@ -59,10 +59,13 @@
 
 <body>
 
-<header class="d-flex justify-content-between align-items-center border-bottom">
+<header class="d-flex justify-content-between align-items-center">
 
     <div class="d-flex align-items-center gap-3">
-
+        <button id="backBtn" class="header-btn" onclick="window.history.back()">
+            <i class="bi bi-arrow-left"></i>
+        </button>
+        
         <h3 class="m-0">
 
             Categories
@@ -89,62 +92,45 @@
 
         <p id="categoryStats">
 
-            0 notes across 0 categories
+            0 notes across 0 folders
 
         </p>
 
     </section>
 
-    <!-- Categories -->
+    <!-- Breadcrumb -->
 
-    <section
-        id="categoryGrid"
-        class="row g-3 mb-4"
-    >
+    <nav
+        id="explorerBreadcrumb"
+        class="explorer-breadcrumb"
+    ></nav>
 
-    </section>
+    <!-- New folder inline -->
 
+    <div class="explorer-new-folder-input">
 
-    <!-- Notes -->
-
-    <section>
-
-        <div
-            class="d-flex justify-content-between align-items-center mb-3"
+        <input
+            type="text"
+            id="newFolderInput"
+            class="form-control rounded-4"
+            placeholder="New folder name..."
         >
 
-            <h3
-                id="selectedCategory"
-                class="m-0"
-            >
-
-                All Notes
-
-            </h3>
-
-            <span
-                id="selectedCount"
-            >
-
-                0 Notes
-
-            </span>
-
-        </div>
-
-        <div
-            id="categoryNotes"
+        <button
+            id="newFolderBtn"
+            type="button"
+            class="btn btn-primary rounded-4 px-3"
         >
+            <i class="bi bi-folder-plus"></i>
+        </button>
 
-        </div>
+    </div>
 
-    </section>
+    <!-- Folders & Notes mixed list -->
+
+    <section id="explorerList"></section>
 
 </main>
-
-<button class="fab-btn" onclick="window.location.href='add-note.html'">
-    <i class="bi bi-plus-lg"></i>
-</button>
 
     <nav class="bottom-nav">
         <a href="dashboard.html" class="nav-item">
@@ -153,6 +139,10 @@
 
         <a href="hub.html" class="nav-item">
             <i class="bi bi-grid-fill"></i>
+        </a>
+
+        <a href="add-note.html" class="nav-item add-note">
+            <i class="bi bi-plus-circle-fill"></i>
         </a>
 
         <a href="category.html" class="nav-item active">

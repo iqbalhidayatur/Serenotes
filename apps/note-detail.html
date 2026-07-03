@@ -44,27 +44,40 @@
 
 <header class="detail-header">
 
-    <a
-        href="dashboard.html"
-        class="header-btn"
-    >
-        <i class="bi bi-arrow-left"></i>
-    </a>
+    <button id="backBtn" class="header-btn" onclick="window.history.back()">
+            <i class="bi bi-arrow-left"></i>
+        </button>
 
     <div class="header-actions">
+
+        <div class="tag-header-wrap">
+            <button id="tagHeaderBtn" class="header-btn" title="Tags">
+                <i class="bi bi-tags"></i>
+            </button>
+            <div id="tagDropdown" class="tag-dropdown">
+                <div class="tags-wrap mb-2" id="tagsContainer"></div>
+                <div class="tag-add-row d-flex justify-content-center align-items-center gap-2">
+                    <input type="text" id="tagAddInput" class="tag-add-input" placeholder="Add tag...">
+                    <button id="tagAddBtn" class="tag-add-btn btn btn-primary d-flex justify-content-center align-items-center">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <button
+            id="viewModeBtn"
+            class="header-btn"
+            title="Toggle view mode"
+        >
+            <i class="bi bi-eye"></i>
+        </button>
 
         <button
             id="editBtn"
             class="header-btn"
         >
             <i class="bi bi-pencil-square"></i>
-        </button>
-
-        <button
-            id="deleteBtn"
-            class="header-btn"
-        >
-            <i class="bi bi-trash3"></i>
         </button>
 
         <button
@@ -85,14 +98,6 @@
     <div class="d-flex align-items-center gap-2 mb-4">
 
         <span
-            id="priorityBadge"
-            class="badge rounded-pill bg-primary px-3 py-2"
-        >
-            <i class="bi bi-star-fill me-1"></i>
-            Important
-        </span>
-
-        <span
             id="categoryBadge"
             class="badge rounded-pill text-dark bg-light border px-3 py-2"
         >
@@ -101,14 +106,8 @@
 
     </div>
 
-    <!-- Title -->
-
-    <h1
-        id="noteTitle"
-        class="note-title mb-3"
-    >
-        Q4 Product Roadmap & Team Tasks
-    </h1>
+    <!-- Note Name -->
+    <p id="noteNameDisplay" class="note-name text-secondary mb-1"></p>
 
     <!-- Date & Reminder -->
 
@@ -135,56 +134,6 @@
             class="d-flex align-items-center gap-2 text-primary"
         >
 
-            <i class="bi bi-bell-fill"></i>
-
-            <span>
-                Reminder Active
-            </span>
-
-        </div>
-
-    </div>
-
-    <!-- Voice Note -->
-
-    <div
-        id="voiceCard"
-        class="voice-player rounded-4 p-3 mb-4"
-    >
-
-        <div class="d-flex align-items-center">
-
-            <button
-                class="voice-play-btn"
-                id="playVoiceBtn"
-            >
-
-                <i class="bi bi-play-fill"></i>
-
-            </button>
-
-            <div class="voice-wave mx-3">
-
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-
-            </div>
-
-            <span
-                id="voiceDuration"
-                class="ms-auto"
-            >
-                00:00
-            </span>
-
         </div>
 
     </div>
@@ -192,68 +141,52 @@
     <!-- Note Content -->
 
     <div
-        id="noteContent"
-        class="note-detail-content mb-5"
-    >
+        id="editor"
+        class="note-editor">
     </div>
 
-    <!-- Checklist -->
-
-    <div
-        id="checklistSection"
-        class="mb-5"
-    >
-
-        <div class="detail-section-title">
-            Checklist
-        </div>
-
-        <div id="checklistContainer">
-        </div>
-
-    </div>
+    <!-- Media -->
+    <section id="mediaSection" class="mt-5 d-none">
+        <h6 class="fw-semibold mb-3">
+            <i class="bi bi-paperclip me-2"></i>Attachments
+        </h6>
+        <div id="mediaContainer"></div>
+    </section>
 
     <!-- Reminder -->
+    <section id="reminderSection" class="mt-4">
+        <div id="reminderContainer"></div>
+    </section>
 
-    <div
-        id="reminderSection"
-        class="mb-5"
-    >
+    <section id="noteFoldersSection" class="mt-5">
 
-        <div class="detail-section-title">
-            Reminder
+        <div class="d-flex justify-content-between align-items-center mb-3">
+
+            <h5 class="mb-0">Sub-pages</h5>
+
+            <div class="d-flex gap-2 sub-pages">
+
+                <button
+                    id="btnAddNoteInNote"
+                    class="btn btn-outline-primary rounded-pill">
+                    <i class="bi bi-file-earmark-plus"></i>
+                </button>
+
+                <button
+                    id="btnAddFolderInNote"
+                    class="btn btn-primary rounded-pill">
+                    <i class="bi bi-folder-plus"></i>
+                </button>
+
+            </div>
+
         </div>
 
-        <div id="reminderContainer">
-        </div>
+        <div id="noteFoldersList"></div>
 
-    </div>
-
-    <!-- Attachment -->
-
-    <div
-        id="mediaSection"
-        class="mb-5"
-    >
-
-        <div class="detail-section-title">
-            Attachments
-        </div>
-
-        <div id="mediaContainer">
-        </div>
-
-    </div>
+    </section>
 
 </main>
-
-<a
-    href="#"
-    id="floatingEdit"
-    class="floating-edit"
->
-    <i class="bi bi-pencil-fill"></i>
-</a>
 
 <nav class="bottom-nav">
 
@@ -283,6 +216,64 @@
     </a>
 
 </nav>
+
+<div id="editorToolbar" class="editor-toolbar">
+
+    <button data-command="bold">
+        <i class="bi bi-type-bold"></i>
+    </button>
+
+    <button data-command="italic">
+        <i class="bi bi-type-italic"></i>
+    </button>
+
+    <button data-command="underline">
+        <i class="bi bi-type-underline"></i>
+    </button>
+
+    <button data-heading="heading1">H1</button>
+    <button data-heading="heading2">H2</button>
+    <button data-heading="heading3">H3</button>
+
+    <button id="toolbarAttachBtn" class="media-upload-btn" title="Add attachment">
+        <i class="bi bi-paperclip"></i>
+    </button>
+
+</div>
+
+<input type="file" id="mediaFileInput" multiple accept="image/*,video/*,audio/*" style="display:none">
+
+<div id="slashMenu" class="slash-menu">
+
+    <button data-type="paragraph">
+        Paragraph
+    </button>
+
+    <button data-type="heading1">
+        Heading 1
+    </button>
+
+    <button data-type="heading2">
+        Heading 2
+    </button>
+
+    <button data-type="heading3">
+        Heading 3
+    </button>
+
+    <button data-type="quote">
+        Quote
+    </button>
+
+    <button data-type="todo">
+        Checklist
+    </button>
+
+    <button data-type="media">
+        Attachment
+    </button>
+
+</div>
 
 <script
     type="module"

@@ -1,189 +1,144 @@
 import {
+    initTheme
+} from "../services/themeService.js";
 
-    getVisibleCategories
-
-} from "../services/categoryService.js";
+initTheme();
 
 import {
-    getAllNotes
-} from "../services/noteService.js";
+    getChildFolders,
+    getBreadcrumb,
+    getFolderNoteCount,
+    getFolderStats,
+    getNotesInParent,
+    createFolder,
+    renameFolder,
+    deleteFolder
+} from "../services/folderService.js";
 
-const categoryGrid =
-    document.getElementById("categoryGrid");
+const explorerBreadcrumb = document.getElementById("explorerBreadcrumb");
+const explorerList       = document.getElementById("explorerList");
+const categoryStats      = document.getElementById("categoryStats");
+const newFolderInput     = document.getElementById("newFolderInput");
+const newFolderBtn       = document.getElementById("newFolderBtn");
 
-const categoryNotes =
-    document.getElementById("categoryNotes");
+// folder yang sedang dibuka (null = root)
+let currentFolderId = null;
 
-const categoryStats =
-    document.getElementById("categoryStats");
-
-const selectedCategory =
-    document.getElementById("selectedCategory");
-
-const selectedCount =
-    document.getElementById("selectedCount");
-
-const CATEGORY_ICONS = {
-
-    Work: "style/assets/briefcase.png",
-
-    Personal: "style/assets/home.png",
-
-    Ideas: "style/assets/idea.png",
-
-    Archive: "style/assets/archive.png"
-
-};
-
-let activeCategory = null;
+let currentParentType = null;
 
 init();
 
 function init(){
 
-    renderCategories();
+    currentParentType = null;
 
-}
+    newFolderBtn.addEventListener("click", handleCreateFolder);
 
-function renderCategories(){
+    newFolderInput.addEventListener("keydown", event=>{
 
-    const categories = getVisibleCategories();
-
-    const notes = getAllNotes();
-
-    categoryGrid.innerHTML = "";
-
-    categoryStats.textContent =
-        `${notes.length} notes across ${categories.length} categories`;
-
-    categories.forEach(category=>{
-
-        const count =
-            notes.filter(note=>
-
-                note.category === category.name
-
-            ).length;
-
-        categoryGrid.innerHTML += `
-
-            <div class="col-6">
-
-                <div
-                    class="category-card-item"
-                    data-category="${category.name}"
-                >
-
-                    <div class="category-icon">
-
-                        <img
-                            src="${
-                                CATEGORY_ICONS[category.name] ||
-                                "style/assets/folder.png"
-                            }"
-                            class="category-icon-img"
-                            alt="${category.name}"
-                        >
-
-                    </div>
-
-                    <div>
-
-                        <div class="category-title">
-
-                            ${category.name}
-
-                        </div>
-
-                        <div class="category-count">
-
-                            ${count} Notes
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        `;
+        if(event.key === "Enter"){
+            event.preventDefault();
+            handleCreateFolder();
+        }
 
     });
 
-    document
-        .querySelectorAll(".category-card-item")
-        .forEach(card=>{
-
-            card.addEventListener(
-                "click",
-                ()=>{
-
-                    activeCategory =
-                        card.dataset.category;
-
-                    document
-                        .querySelectorAll(".category-card-item")
-                        .forEach(item=>
-
-                            item.classList.remove("active")
-
-                        );
-
-                    card.classList.add("active");
-
-                    renderNotes(activeCategory);
-
-                }
-            );
-
-        });
-
-    if(categories.length){
-
-        activeCategory = categories[0].name;
-
-        document
-            .querySelector(".category-card-item")
-            ?.classList.add("active");
-
-        renderNotes(activeCategory);
-
-    }
+    render();
 
 }
 
-function renderNotes(category){
+function render(){
 
-    const notes =
-        getAllNotes().filter(note=>
+    renderStats();
+    renderBreadcrumb();
+    renderList();
+    updateAddNoteLink();
 
-            note.category === category
+}
 
-        );
+function renderStats(){
 
-    selectedCategory.textContent =
-        category;
+    const stats = getFolderStats();
 
-    selectedCount.textContent =
-        `${notes.length} Notes`;
+    categoryStats.textContent = stats.text;
 
-    categoryNotes.innerHTML = "";
+}
 
-    if(notes.length === 0){
+function renderBreadcrumb(){
 
-        categoryNotes.innerHTML = `
+    const path = getBreadcrumb(currentFolderId);
 
-            <div class="category-empty">
+    explorerBreadcrumb.innerHTML = `
 
-                <i class="bi bi-journal-x"></i>
+        <a data-nav="root" class="${!path.length ? "current" : ""}">
+            <i class="bi bi-house-door-fill"></i> Home
+        </a>
 
-                <h5>
+        ${path.map((folder, index)=>`
 
-                    No Notes
+            <span class="sep">/</span>
 
-                </h5>
+            <a
+                data-nav="${folder.id}"
+                class="${index === path.length - 1 ? "current" : ""}"
+            >
+                ${folder.name}
+            </a>
 
+        `).join("")}
+
+    `;
+
+    explorerBreadcrumb.querySelectorAll("[data-nav]").forEach(link=>{
+
+        link.addEventListener("click", ()=>{
+
+            if (link.dataset.nav === "root") {
+
+                currentFolderId = null;
+                currentParentType = null;
+
+            } else {
+
+                currentFolderId = link.dataset.nav;
+                currentParentType = "folder";
+
+            }
+
+            render();
+
+        });
+
+    });
+
+}
+
+function renderList(){
+
+    const folders = getChildFolders(
+
+        currentFolderId,
+
+        currentParentType
+
+    );
+  
+    const notes = getNotesInParent(
+
+        currentFolderId,
+
+        currentParentType
+
+    );
+
+    if(!folders.length && !notes.length){
+
+        explorerList.innerHTML = `
+
+            <div class="explorer-empty">
+                <i class="bi bi-folder2-open"></i>
+                <h5>Empty Folder</h5>
+                <p>Create a subfolder above, or add a note here from the Add Note form.</p>
             </div>
 
         `;
@@ -192,52 +147,44 @@ function renderNotes(category){
 
     }
 
-    notes.forEach(note=>{
+    const folderRows = folders.map(folder=>{
 
-        categoryNotes.innerHTML += `
+        const count = getFolderNoteCount(folder.id, true);
 
-            <div
-                class="category-note"
-                data-id="${note.id}"
-            >
+        const childFolders = getChildFolders(
+            folder.id,
+            "folder"
+        ).length;
+
+        return `
+
+            <div class="explorer-row" data-type="folder" data-id="${folder.id}">
 
                 <div
-                    class="category-note-left"
+                    class="explorer-row-icon"
+                    style="background:${folder.color}22;color:${folder.color}"
                 >
+                    <i class="${folder.icon || "bi bi-folder-fill"}"></i>
+                </div>
 
-                    <div
-                        class="d-flex align-items-center gap-2"
-                    >
+                <div class="explorer-row-body">
+                    <div class="explorer-row-title">${folder.name}</div>
+                    <div class="explorer-row-meta">
 
-                        <span
-                            class="category-note-category"
-                        >
-
-                            ${note.category}
-
-                        </span>
-
-                        <span
-                            class="category-note-time"
-                        >
-
-                            ${formatTime(note.date)}
-
-                        </span>
+                        ${childFolders} folders • ${count} notes
 
                     </div>
+                </div>
 
-                    <div
-                        class="category-note-title"
-                    >
+                <div class="explorer-row-actions">
 
-                        ${
-                            note.title
-                            ? note.title
-                            : getPreview(note.content)
-                        }
+                    <button type="button" data-action="rename" data-id="${folder.id}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
 
-                    </div>
+                    <button type="button" data-action="delete" data-id="${folder.id}">
+                        <i class="bi bi-trash"></i>
+                    </button>
 
                 </div>
 
@@ -247,55 +194,158 @@ function renderNotes(category){
 
         `;
 
-    });
+    }).join("");
 
-    document
-        .querySelectorAll(".category-note")
-        .forEach(card=>{
+    const noteRows = notes.map(note=>`
 
-            card.addEventListener(
-                "click",
-                ()=>{
+        <div class="explorer-row" data-type="note" data-id="${note.id}">
 
-                    window.location.href =
-                        `note-detail.html?id=${card.dataset.id}`;
+            <div class="explorer-row-icon" style="background:var(--primary-light);color:var(--primary)">
+                <i class="bi bi-file-earmark-text-fill"></i>
+            </div>
 
-                }
-            );
+            <div class="explorer-row-body">
+                <div class="explorer-row-title">
+                    ${note.title ? note.title : getPreview(note.blocks?.[0]?.text)}
+                </div>
+                <div class="explorer-row-meta">${formatTime(note.date)}</div>
+            </div>
+
+            <i class="bi bi-chevron-right"></i>
+
+        </div>
+
+    `).join("");
+
+    explorerList.innerHTML = folderRows + noteRows;
+
+    bindRowEvents();
+
+}
+
+function bindRowEvents(){
+
+    explorerList.querySelectorAll(".explorer-row").forEach(row=>{
+
+        row.addEventListener("click", event=>{
+
+            // Jangan navigasi kalau yang diklik adalah tombol aksi
+            if(event.target.closest("[data-action]")) return;
+
+            if(row.dataset.type === "folder"){
+                currentFolderId = row.dataset.id;
+
+                currentParentType = "folder";
+
+                render();
+            }else{
+                window.location.href = `note-detail.html?id=${row.dataset.id}`;
+            }
 
         });
+
+    });
+
+    explorerList.querySelectorAll("[data-action='rename']").forEach(button=>{
+
+        button.addEventListener("click", ()=>{
+
+            const folder = getChildFolders(
+
+                currentFolderId,
+
+                currentParentType
+
+            )
+                .find(item => item.id === button.dataset.id);
+
+            const newName = prompt("Rename folder", folder?.name || "");
+
+            if(!newName) return;
+
+            if(!renameFolder(button.dataset.id, newName)){
+                alert("A folder with that name already exists here.");
+                return;
+            }
+
+            render();
+
+        });
+
+    });
+
+    explorerList.querySelectorAll("[data-action='delete']").forEach(button=>{
+
+        button.addEventListener("click", ()=>{
+
+            const noteCount = getFolderNoteCount(button.dataset.id, true);
+
+            const confirmMessage = noteCount > 0
+                ? `Delete this folder and its ${noteCount} note(s) inside (including subfolders)? This cannot be undone.`
+                : "Delete this empty folder?";
+
+            if(!confirm(confirmMessage)) return;
+
+            deleteFolder(button.dataset.id);
+
+            render();
+
+        });
+
+    });
+
+}
+
+function updateAddNoteLink() {
+    const btn = document.getElementById("navAddNote");
+    if (!btn) return;
+    btn.href = currentFolderId
+        ? `add-note.html?parentId=${currentFolderId}&parentType=folder`
+        : "add-note.html";
+}
+
+function handleCreateFolder(){
+
+    const value = newFolderInput.value.trim();
+
+    if(!value) return;
+
+    const folder = createFolder(
+
+        value,
+
+        currentFolderId,
+
+        currentParentType
+
+    );
+
+    if(!folder){
+        alert("A folder with that name already exists here.");
+        return;
+    }
+
+    newFolderInput.value = "";
+
+    render();
 
 }
 
 function getPreview(text){
 
-    if(!text){
-
-        return "Untitled";
-
-    }
+    if(!text) return "Untitled";
 
     return text.length > 40
-
-        ? text.substring(0,40) + "..."
-
+        ? text.substring(0, 40) + "..."
         : text;
 
 }
 
 function formatTime(date){
 
-    return new Date(date)
-        .toLocaleTimeString(
-            "en-US",
-            {
-
-                hour:"2-digit",
-
-                minute:"2-digit"
-
-            }
-
-        );
+    return new Date(date).toLocaleTimeString(
+        "en-US",
+        { hour: "2-digit", minute: "2-digit" }
+    );
 
 }

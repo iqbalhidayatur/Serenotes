@@ -5,12 +5,103 @@ const STORAGE_KEY = "serenotes_notes";
  */
 export function getAllNotes() {
 
-    const notes = localStorage.getItem(STORAGE_KEY);
+    const notes = JSON.parse(
+        localStorage.getItem(STORAGE_KEY) || "[]"
+    );
 
-    return notes ? JSON.parse(notes) : [];
+    let changed = false;
+
+    notes.forEach(note => {
+
+        if (!note.noteName) {
+
+            note.noteName = note.title || "";
+
+            changed = true;
+
+        }
+
+        if (!note.blocks) {
+
+            note.blocks = [
+                {
+                    id: crypto.randomUUID(),
+                    type: "paragraph",
+                    text: note.content || ""
+                }
+            ];
+
+            delete note.content;
+
+            changed = true;
+        }
+
+        if(note.parentId === undefined){
+
+            note.parentId =
+                note.folderId || null;
+
+            note.parentType =
+                note.folderId
+                    ? "folder"
+                    : null;
+
+            changed = true;
+
+        }
+
+    });
+
+    if (changed) {
+        saveNotes(notes);
+    }
+
+    return notes;
 
 }
 
+
+export function getChildrenNotes(
+
+    parentId = null,
+
+    parentType = null
+
+){
+
+    return getAllNotes().filter(note =>
+
+        (note.parentId || null) === (parentId || null)
+
+        &&
+
+        (note.parentType || null) === (parentType || null)
+
+    );
+
+}
+
+export function moveNote(
+
+    id,
+
+    parentId,
+
+    parentType
+
+){
+
+    return updateNote(id,{
+
+        folderId: parentId,
+
+        parentId,
+
+        parentType
+
+    });
+
+}
 /**
  * Menyimpan semua notes ke LocalStorage.
  */
@@ -20,6 +111,86 @@ function saveNotes(notes) {
         STORAGE_KEY,
         JSON.stringify(notes)
     );
+
+}
+
+export function getNotesByFolder(folderId) {
+
+    return getChildrenNotes(
+
+        folderId,
+
+        "folder"
+
+    );
+
+}
+
+export function getNotesByParent(
+
+    parentId,
+
+    parentType
+
+){
+
+    return getChildrenNotes(
+
+        parentId,
+
+        parentType
+
+    );
+
+}
+
+export function getRootNotes(){
+
+    return getChildrenNotes(
+
+        null,
+
+        null
+
+    );
+
+}
+
+export function mergeNote(targetId, blocks) {
+
+    const notes = getAllNotes();
+
+    const index = notes.findIndex(
+        note => note.id === targetId
+    );
+
+    if (index === -1) return false;
+
+    notes[index].blocks.push(...blocks);
+
+    notes[index].updatedAt =
+        new Date().toISOString();
+
+    saveNotes(notes);
+
+    return true;
+
+}
+
+export function hasNotesInFolder(folderId) {
+
+    return getNotesByFolder(folderId).length > 0;
+
+}
+
+/**
+ * Simpan seluruh array notes langsung tanpa menyentuh
+ * updatedAt masing-masing note. Dipakai untuk operasi
+ * massal seperti migrasi folder.
+ */
+export function saveAllNotes(notes) {
+
+    saveNotes(notes);
 
 }
 
@@ -34,39 +205,57 @@ export function createNote(data) {
 
     const note = {
 
-        id: crypto.randomUUID(),
+    id: crypto.randomUUID(),
 
-        title: data.title || "",
+    noteName:data.noteName || "",
 
-        content: data.content || "",
+    title:data.title || "",
 
-        category: data.category || "",
+    blocks: data.blocks || [
+        {
+            id: crypto.randomUUID(),
+            type: "paragraph",
+            text: data.content || ""
+        }
+    ],
 
-        subcategory: data.subcategory || "",
+    // folderId: id folder tempat note ini "disimpan di dalam".
+    // null = tidak berada di dalam folder manapun (root/tanpa folder).
+    folderId: data.folderId ?? data.parentId ?? null,
 
-        tags: data.tags || [],
+    parentId: data.parentId ?? data.folderId ?? null,
 
-        date: data.date || now,
+    parentType: data.parentType ?? "folder",
 
-        updatedAt: now,
+    // category/subcategory dipertahankan sebagai label tampilan saja
+    // (disinkronkan otomatis dari nama folder terpilih), supaya
+    // halaman lain yang masih membaca note.category tetap jalan.
+    category: data.category || "",
 
-        isPinned: false,
+    subcategory: data.subcategory || "",
 
-        isArchived: false,
+    tags: data.tags || [],
 
-        reminder: data.reminder || {
+    date: data.date || now,
 
-            enabled: false,
+    createdAt: now,
+    updatedAt: now,
+    lastOpened: now,
 
-            datetime: ""
+    isPinned: false,
 
-        },
+    isArchived: false,
 
-        checklist: data.checklist || [],
+    reminder: data.reminder || {
+        enabled:false,
+        datetime:""
+    },
 
-        media: data.media || []
+    checklist:data.checklist || [],
 
-    };
+    media:data.media || []
+
+};
 
     notes.unshift(note);
 
@@ -99,6 +288,12 @@ export function updateNote(id, data) {
     );
 
     if (index === -1) return false;
+
+    if(data.parentId !== undefined){
+
+        data.folderId = data.parentId;
+
+    }
 
     notes[index] = {
 
