@@ -1,21 +1,26 @@
-import { LocalNotifications } from "@capacitor/local-notifications";
-
 /**
- * Cek apakah berjalan di Capacitor native (Android/iOS)
- * atau di browser biasa.
+ * Cek apakah berjalan di Capacitor native (Android/iOS).
  */
 function isNative() {
     return !!(window.Capacitor?.isNativePlatform?.());
 }
 
 /**
+ * Ambil plugin LocalNotifications dari Capacitor global.
+ * Di native, Capacitor inject plugin ke window.Capacitor.Plugins.
+ */
+function getPlugin() {
+    return window.Capacitor?.Plugins?.LocalNotifications || null;
+}
+
+/**
  * Minta izin notifikasi.
- * Di native: pakai Capacitor API.
- * Di browser: pakai Web Notification API.
  */
 export async function requestPermission() {
-    if (isNative()) {
-        const { display } = await LocalNotifications.requestPermissions();
+    const plugin = getPlugin();
+
+    if (isNative() && plugin) {
+        const { display } = await plugin.requestPermissions();
         return display === "granted";
     }
 
@@ -29,32 +34,29 @@ export async function requestPermission() {
 
 /**
  * Schedule notifikasi reminder untuk sebuah note.
- * @param {object} note - note object dengan id, noteName, reminder.datetime
  */
 export async function scheduleReminderNotification(note) {
     if (!note?.reminder?.enabled || !note.reminder.datetime) return;
 
     const scheduledAt = new Date(note.reminder.datetime);
-    if (scheduledAt <= new Date()) return; // Sudah lewat, skip
+    if (scheduledAt <= new Date()) return;
 
     const granted = await requestPermission();
     if (!granted) return;
 
-    // Gunakan hash dari noteId sebagai integer ID notifikasi
     const notifId = hashId(note.id);
+    const plugin  = getPlugin();
 
-    if (isNative()) {
-        // Cancel dulu kalau sudah ada
+    if (isNative() && plugin) {
         await cancelReminderNotification(note.id);
 
-        await LocalNotifications.schedule({
+        await plugin.schedule({
             notifications: [
                 {
                     id:       notifId,
                     title:    "Serenotes Reminder 🔔",
                     body:     note.noteName || note.title || "You have a reminder!",
                     schedule: { at: scheduledAt, allowWhileIdle: true },
-                    sound:    null,
                     smallIcon: "ic_launcher_foreground",
                     extra:    { noteId: note.id }
                 }
@@ -62,7 +64,7 @@ export async function scheduleReminderNotification(note) {
         });
 
     } else {
-        // Fallback browser: pakai setTimeout (hanya works kalau tab terbuka)
+        // Fallback browser: setTimeout (hanya works kalau tab terbuka)
         const delay = scheduledAt.getTime() - Date.now();
         if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
             setTimeout(() => {
@@ -77,25 +79,21 @@ export async function scheduleReminderNotification(note) {
 
 /**
  * Cancel notifikasi yang sudah di-schedule untuk note tertentu.
- * @param {string} noteId
  */
 export async function cancelReminderNotification(noteId) {
-    if (!isNative()) return;
+    const plugin = getPlugin();
+    if (!isNative() || !plugin) return;
 
     const notifId = hashId(noteId);
-
     try {
-        await LocalNotifications.cancel({
-            notifications: [{ id: notifId }]
-        });
+        await plugin.cancel({ notifications: [{ id: notifId }] });
     } catch (e) {
-        // Tidak apa-apa kalau belum ada yang di-schedule
+        // Tidak apa-apa kalau belum ada
     }
 }
 
 /**
- * Re-schedule semua reminder yang belum lewat dan belum completed.
- * Panggil ini saat app pertama dibuka (di dashboard.js).
+ * Re-schedule semua reminder yang belum lewat saat app dibuka.
  */
 export async function rescheduleAllReminders() {
     const granted = await requestPermission();
@@ -110,22 +108,20 @@ export async function rescheduleAllReminders() {
     for (const note of notes) {
         const r = note.reminder;
         if (!r?.enabled || r.completed || r.notified) continue;
-
-        const reminderTime = new Date(r.datetime);
-        if (reminderTime <= now) continue; // Sudah lewat
-
+        if (new Date(r.datetime) <= now) continue;
         await scheduleReminderNotification(note);
     }
 }
 
 /**
- * Setup listener untuk klik notifikasi → buka note.
+ * Setup listener klik notifikasi → buka note.
  * Panggil sekali saat app init.
  */
 export function setupNotificationListener() {
-    if (!isNative()) return;
+    const plugin = getPlugin();
+    if (!isNative() || !plugin) return;
 
-    LocalNotifications.addListener(
+    plugin.addListener(
         "localNotificationActionPerformed",
         (action) => {
             const noteId = action.notification.extra?.noteId;
@@ -137,15 +133,14 @@ export function setupNotificationListener() {
 }
 
 /**
- * Convert string UUID ke integer untuk ID notifikasi Capacitor.
- * Capacitor butuh ID berupa integer 32-bit.
+ * Convert UUID string ke integer 32-bit untuk ID notifikasi.
  */
 function hashId(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         const char = str.charCodeAt(i);
         hash = (hash << 5) - hash + char;
-        hash |= 0; // Convert ke 32-bit integer
+        hash |= 0;
     }
     return Math.abs(hash);
 }

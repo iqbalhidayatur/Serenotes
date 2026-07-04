@@ -9,16 +9,11 @@ import {
     getDescendantFolderIds
 } from "../services/folderService.js";
 
-import { startReminderChecker } from "../services/notificationService.js";
-
 import { rescheduleAllReminders, setupNotificationListener } from "../services/notificationService.js";
 
 // Init notifikasi saat app dibuka
 setupNotificationListener();
 rescheduleAllReminders();
-
-// Mulai reminder checker saat dashboard dibuka
-startReminderChecker();
 
 initTheme();
 
@@ -147,6 +142,12 @@ function createCard(note) {
             <div class="card-date pb-2">
                 <i class="bi bi-clock"></i>
                 <span>${formatDate(note.date)}</span>
+                ${note.reminder?.enabled && !note.reminder?.completed ? `
+                    <span class="ms-2 text-warning" title="Reminder: ${formatDate(note.reminder.datetime)}">
+                        <i class="bi bi-bell-fill"></i>
+                        <small>${formatDate(note.reminder.datetime)}</small>
+                    </span>
+                ` : ""}
             </div>
         </div>
     `;

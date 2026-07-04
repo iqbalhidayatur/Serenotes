@@ -36,6 +36,13 @@ function init() {
     renderAll();
 }
 
+// Debug: cek apakah ada note dengan reminder
+console.log("All notes with reminder:", 
+    JSON.parse(localStorage.getItem("serenotes_notes") || "[]")
+        .filter(n => n.reminder?.enabled)
+        .map(n => ({ name: n.noteName, datetime: n.reminder.datetime, completed: n.reminder.completed }))
+);
+
 function renderAll() {
     const stats = getReminderStats();
     todayCount.textContent    = stats.today;
@@ -86,7 +93,7 @@ function createCard(note) {
         <div class="reminder-card ${isCompleted ? "reminder-done" : ""}" data-id="${note.id}">
             <div class="reminder-card-left">
                 <div class="reminder-note-title">
-                    ${note.title || "Untitled"}
+                    ${note.noteName || note.title || "Untitled"}
                 </div>
                 <div class="reminder-note-time">
                     <i class="bi bi-bell"></i>

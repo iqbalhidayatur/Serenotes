@@ -503,7 +503,14 @@ function updateFolderPickerLabel() {
 function toggleReminder() {
     if (reminderSwitch.checked) {
         reminderFields.classList.remove("d-none");
-        reminderDate.value = noteDateInput.value;
+        // Set default ke waktu note + 1 jam kalau belum diisi
+        if (!reminderDate.value) {
+            const defaultTime = noteDateInput.value
+                ? new Date(new Date(noteDateInput.value).getTime() + 60 * 60 * 1000)
+                : new Date(Date.now() + 60 * 60 * 1000);
+            const pad = n => String(n).padStart(2, "0");
+            reminderDate.value = `${defaultTime.getFullYear()}-${pad(defaultTime.getMonth()+1)}-${pad(defaultTime.getDate())}T${pad(defaultTime.getHours())}:${pad(defaultTime.getMinutes())}`;
+        }
     } else {
         reminderFields.classList.add("d-none");
         reminderDate.value = "";
@@ -617,13 +624,27 @@ async function handleSubmit(event) {
         category:   selectedFolder?.name || "",
         subcategory:"",
         date:       noteDateInput.value,
-        reminder:   reminderSwitch.checked
-                        ? createReminder(reminderDate.value || noteDateInput.value)
-                        : { enabled: false, datetime: "", completed: false, notified: false },
+        reminder: (() => {
+            if (reminderSwitch.checked && reminderDate.value) {
+                return {
+                    enabled:   true,
+                    datetime:  reminderDate.value,
+                    completed: false,
+                    notified:  false,
+                    createdAt: new Date().toISOString()
+                };
+            }
+            return { enabled: false, datetime: "", completed: false, notified: false };
+        })(),
         checklist:  editingNote?.checklist || [],
         media:      uploadedMedia,
         tags:       editingNote?.tags || []
     };
+
+    // DEBUG — hapus setelah masalah ditemukan
+    console.log("reminderSwitch.checked:", reminderSwitch.checked);
+    console.log("reminderDate.value:", reminderDate.value);
+    console.log("noteData.reminder:", JSON.stringify(noteData.reminder));
 
     if (editingNote) {
         updateNote(editingNote.id, noteData);
