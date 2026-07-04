@@ -13,7 +13,11 @@ import {
     createCard,
     deleteCard,
     moveCard,
-    getColumnOfCard
+    getColumnOfCard,
+    addColumn,
+    renameColumn,
+    deleteColumn,
+    updateCardCover
 } from "../services/boardService.js";
 
 let activeBoard = null;
@@ -111,27 +115,69 @@ function renderColumns() {
     columnsWrap.innerHTML = "";
 
     activeBoard.columns.forEach(column => {
-        const doneCount  = column.cards.filter(c =>
-            c.checklist.length && c.checklist.every(i => i.done)
-        ).length;
-
-        columnsWrap.innerHTML += `
-            <div class="kanban-col" data-col-id="${column.id}">
-                <div class="kanban-col-header">
-                    <span class="kanban-col-name">${column.name}</span>
+        const colEl = document.createElement("div");
+        colEl.className = "kanban-col";
+        colEl.dataset.colId = column.id;
+        colEl.innerHTML = `
+            <div class="kanban-col-header">
+                <span class="kanban-col-name" data-col-id="${column.id}">${column.name}</span>
+                <div class="d-flex align-items-center gap-1">
                     <span class="kanban-col-count">${column.cards.length}</span>
+                    <button class="kanban-col-menu-btn" data-col-id="${column.id}" title="Column options">
+                        <i class="bi bi-three-dots"></i>
+                    </button>
                 </div>
-                <div class="kanban-cards" id="col-${column.id}">
-                    ${column.cards.map(card => createCardHTML(card, column.id)).join("")}
-                </div>
-                <button class="kanban-add-card" data-col-id="${column.id}">
-                    <i class="bi bi-plus"></i> Add card
-                </button>
             </div>
+            <div class="kanban-cards" id="col-${column.id}">
+                ${column.cards.map(card => createCardHTML(card, column.id)).join("")}
+            </div>
+            <button class="kanban-add-card" data-col-id="${column.id}">
+                <i class="bi bi-plus"></i> Add card
+            </button>
         `;
+        columnsWrap.appendChild(colEl);
     });
 
-    // Add card buttons
+    // Tombol tambah kolom baru
+    const addColEl = document.createElement("div");
+    addColEl.className = "kanban-add-col";
+    addColEl.innerHTML = `
+        <button id="addColBtn" class="kanban-add-col-btn">
+            <i class="bi bi-plus"></i> Add column
+        </button>
+    `;
+    columnsWrap.appendChild(addColEl);
+
+    // Add column
+    document.getElementById("addColBtn").addEventListener("click", () => {
+        const name = prompt("Column name:");
+        if (!name?.trim()) return;
+        addColumn(activeBoard.id, name.trim());
+        refreshBoard();
+    });
+
+    // Column header: klik nama untuk rename
+    columnsWrap.querySelectorAll(".kanban-col-name").forEach(el => {
+        el.addEventListener("click", () => {
+            const colId = el.dataset.colId;
+            const current = el.textContent.trim();
+            const newName = prompt("Rename column:", current);
+            if (!newName?.trim() || newName.trim() === current) return;
+            renameColumn(activeBoard.id, colId, newName.trim());
+            refreshBoard();
+        });
+    });
+
+    // Column menu (delete)
+    columnsWrap.querySelectorAll(".kanban-col-menu-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const colId = btn.dataset.colId;
+            showColumnMenu(btn, colId);
+        });
+    });
+
+    // Add card
     columnsWrap.querySelectorAll(".kanban-add-card").forEach(btn => {
         btn.addEventListener("click", () => {
             const title = prompt("Card title:");
@@ -165,20 +211,54 @@ function createCardHTML(card, colId) {
     const done  = card.checklist.filter(i => i.done).length;
     return `
         <div class="kanban-card" data-card-id="${card.id}" data-col-id="${colId}">
+            ${card.cover ? `<img src="${card.cover}" class="kanban-card-cover" alt="cover">` : ""}
             <div class="kanban-card-title">${card.title}</div>
-            ${card.description
-                ? `<div class="kanban-card-desc">${card.description}</div>`
-                : ""}
-            ${total
-                ? `<div class="kanban-card-checklist">
-                        <i class="bi bi-check2-square"></i> ${done}/${total}
-                   </div>`
-                : ""}
+            ${card.description ? `<div class="kanban-card-desc">${card.description}</div>` : ""}
+            ${total ? `
+                <div class="kanban-card-checklist">
+                    <i class="bi bi-check2-square"></i> ${done}/${total}
+                </div>` : ""}
             <button class="kanban-card-delete" data-card-id="${card.id}" data-col-id="${colId}">
                 <i class="bi bi-x"></i>
             </button>
         </div>
     `;
+}
+
+function showColumnMenu(anchorBtn, colId) {
+    // Hapus menu lama jika ada
+    document.getElementById("colContextMenu")?.remove();
+
+    const menu = document.createElement("div");
+    menu.id = "colContextMenu";
+    menu.className = "col-context-menu";
+    menu.innerHTML = `
+        <button id="menuDeleteCol" class="col-context-item text-danger">
+            <i class="bi bi-trash3"></i> Delete column
+        </button>
+    `;
+    document.body.appendChild(menu);
+
+    const rect = anchorBtn.getBoundingClientRect();
+    menu.style.top  = `${rect.bottom + 6}px`;
+    menu.style.left = `${rect.left}px`;
+
+    menu.querySelector("#menuDeleteCol").addEventListener("click", () => {
+        const col = activeBoard.columns.find(c => c.id === colId);
+        if (col?.cards.length) {
+            if (!confirm(`Column "${col.name}" has ${col.cards.length} card(s). Delete anyway?`)) {
+                menu.remove();
+                return;
+            }
+        }
+        deleteColumn(activeBoard.id, colId);
+        menu.remove();
+        refreshBoard();
+    });
+
+    setTimeout(() => {
+        document.addEventListener("click", () => menu.remove(), { once: true });
+    }, 0);
 }
 
 function openCardDetail(cardId, colId) {
@@ -199,6 +279,20 @@ function openCardDetail(cardId, colId) {
             <input class="card-detail-title" value="${card.title}" placeholder="Card title">
 
             <textarea class="card-detail-desc" placeholder="Add description...">${card.description || ""}</textarea>
+
+            <div class="card-detail-cover-section">
+                ${card.cover
+                    ? `<img src="${card.cover}" class="card-detail-cover-preview" id="coverPreview">`
+                    : `<div class="card-detail-cover-empty" id="coverPreview"></div>`
+                }
+                <div class="d-flex gap-2 mt-2">
+                    <label class="btn btn-sm btn-outline-primary rounded-pill flex-grow-1 text-center" style="cursor:pointer">
+                        <i class="bi bi-image"></i> ${card.cover ? "Change cover" : "Add cover"}
+                        <input type="file" id="coverInput" accept="image/*" style="display:none">
+                    </label>
+                    ${card.cover ? `<button id="removeCoverBtn" class="btn btn-sm btn-outline-danger rounded-pill"><i class="bi bi-x"></i></button>` : ""}
+                </div>
+            </div>
 
             <div class="card-detail-move">
                 <label>Move to</label>
@@ -244,6 +338,28 @@ function openCardDetail(cardId, colId) {
 
     modal.querySelector(".modal-backdrop-custom")
          .addEventListener("click", closeModal);
+
+    // Cover upload
+    modal.querySelector("#coverInput")?.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            updateCardCover(activeBoard.id, colId, cardId, ev.target.result);
+            refreshBoard();
+            closeModal();
+            setTimeout(() => openCardDetail(cardId, colId), 310);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Remove cover
+    modal.querySelector("#removeCoverBtn")?.addEventListener("click", () => {
+        updateCardCover(activeBoard.id, colId, cardId, null);
+        refreshBoard();
+        closeModal();
+        setTimeout(() => openCardDetail(cardId, colId), 310);
+    });
 
     // Save card
     modal.querySelector("#saveCardBtn").addEventListener("click", () => {

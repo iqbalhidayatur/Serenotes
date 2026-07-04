@@ -594,7 +594,7 @@ p {
 .form-label{
     font-size: .9rem;
     font-weight: 500;
-    color: var(--text-secondary);
+    color: var(--text-main);
     margin-bottom: 8px;
 }
 
@@ -604,6 +604,7 @@ p {
     border: 1px solid var(--border);
     background: var(--bg-card);
     box-shadow: none;
+    color: var(--text-main);
 }
 
 textarea.form-control{
@@ -772,6 +773,17 @@ header .btn-link:hover{
 
 }
 
+.note-name[contenteditable="true"]:empty::before {
+    content: attr(data-placeholder);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.note-name[contenteditable="true"] {
+    outline: none;
+    cursor: text;
+}
+
 .note-meta{
 
     color:var(--text-muted);
@@ -802,14 +814,14 @@ header .btn-link:hover{
 .editor-toolbar {
     position: fixed;
     z-index: 1000;
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--border-color, #e5e7eb);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 10px;
     padding: 6px 8px;
     display: flex;
     gap: 4px;
     align-items: center;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 16px var(--shadow);
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.15s;
@@ -831,6 +843,10 @@ header .btn-link:hover{
     padding:6px 10px;
 
     border-radius:8px;
+
+    color: var(--text-main);
+
+    background-color: transparent;
 
 }
 
@@ -1233,35 +1249,47 @@ body.read-mode .todo-checkbox {
     font-size: 20px;
 }
 
+#btnAddNoteInNote {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+#btnAddNoteInNote:hover {
+    color: var(--text-light);
+    border-color: var(--primary-active);
+    background-color: var(--primary);
+}
+
 /* ── Toggle Heading ─────────────────────────────────── */
 .editor-block[data-type^="heading"] {
     position: relative;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    padding-left: 26px;
 }
 
 .heading-toggle {
-    flex-shrink: 0;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
     width: 20px;
     height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: var(--text-muted, #9ca3af);
+    color: var(--text-muted);
     border-radius: 4px;
-    transition: background 0.15s, transform 0.2s;
+    transition: background 0.15s;
     user-select: none;
     font-size: 12px;
 }
 
 .heading-toggle:hover {
-    background: var(--hover-bg, rgba(0,0,0,0.06));
+    background: var(--bg-secondary);
 }
 
 .heading-toggle.collapsed {
-    transform: rotate(-90deg);
+    transform: translateY(-50%) rotate(-90deg);
 }
 
 .editor-block.heading-hidden {
@@ -3617,6 +3645,120 @@ mark{
     font-size: 1.1rem;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
+}
+
+/* Kanban: add column */
+.kanban-add-col {
+    min-width: 260px;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 4px;
+}
+
+.kanban-add-col-btn {
+    width: 100%;
+    border: 2px dashed var(--border);
+    background: transparent;
+    border-radius: 20px;
+    padding: 14px 20px;
+    color: var(--text-muted);
+    font-size: .9rem;
+    font-weight: 500;
+    transition: .2s;
+    cursor: pointer;
+}
+
+.kanban-add-col-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+/* Kanban: column header button */
+.kanban-col-menu-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 2px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: .9rem;
+    line-height: 1;
+    transition: .15s;
+}
+
+.kanban-col-menu-btn:hover {
+    background: var(--border);
+    color: var(--text-secondary);
+}
+
+/* Kanban: column name clickable */
+.kanban-col-name {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 2px 4px;
+    transition: background .15s;
+}
+
+.kanban-col-name:hover {
+    background: var(--border-light);
+}
+
+/* Column context menu */
+.col-context-menu {
+    position: fixed;
+    z-index: 2000;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px var(--shadow);
+    padding: 6px;
+    min-width: 160px;
+}
+
+.col-context-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: .9rem;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.col-context-item:hover {
+    background: var(--bg-secondary);
+}
+
+/* Card cover */
+.kanban-card-cover {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.card-detail-cover-section {
+    margin-bottom: 16px;
+}
+
+.card-detail-cover-preview {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    border-radius: 14px;
+    display: block;
+}
+
+.card-detail-cover-empty {
+    width: 100%;
+    height: 0;
 }
 
 /* ===========================

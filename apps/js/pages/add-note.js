@@ -30,6 +30,8 @@ import {
     isSupportedMedia
 } from "../services/mediaService.js";
 
+import { scheduleReminderNotification, cancelReminderNotification } from "../services/notificationService.js";
+
 // ── State ──────────────────────────────────────────────
 const params      = new URLSearchParams(window.location.search);
 const noteId      = params.get("id");
@@ -583,6 +585,14 @@ async function handleSubmit(event) {
     ? getNoteById(noteSelect.value)?.noteName || ""
     : noteNameInput.value.trim();
 
+    // Buat media blocks dari uploaded media
+    const mediaBlocks = uploadedMedia.map(media => ({
+        id:       crypto.randomUUID(),
+        type:     "media",
+        text:     "",
+        mediaIds: JSON.stringify([media.refId || media.id])
+    }));
+
     const noteData = {
         noteName: noteName,
         title:      titleInput.value.trim(),
@@ -596,7 +606,8 @@ async function handleSubmit(event) {
                 id: crypto.randomUUID(),
                 type: "paragraph",
                 text: contentInput.value.trim()
-            }
+            },
+            ...mediaBlocks
         ],
         folderId:    selectedFolderId ?? null,
         parentId:    selectedFolderId ?? currentLocation.parentId ?? null,
@@ -615,45 +626,36 @@ async function handleSubmit(event) {
     };
 
     if (editingNote) {
-
         updateNote(editingNote.id, noteData);
+        saveLastContext(selectedFolderId, editingNote.id);
 
-        saveLastContext(
-            selectedFolderId,
-            editingNote.id
-        );
+        // Cancel notif lama, schedule ulang kalau ada reminder baru
+        await cancelReminderNotification(editingNote.id);
+        if (noteData.reminder?.enabled) {
+            await scheduleReminderNotification({
+                ...editingNote,
+                ...noteData
+            });
+        }
 
-    }
-    else if (noteNameInput.classList.contains("d-none")) {
-
+    } else if (noteNameInput.classList.contains("d-none")) {
         mergeNote(
             noteSelect.value,
             [
-                {
-                    id: crypto.randomUUID(),
-                    type: "section",
-                    text: noteData.title
-                },
+                { id: crypto.randomUUID(), type: "section",   text: noteData.title },
                 ...noteData.blocks
             ]
         );
+        saveLastContext(selectedFolderId, noteSelect.value);
 
-        saveLastContext(
-            selectedFolderId,
-            noteSelect.value
-        );
+    } else {
+        const newNote = createNote(noteData);
+        saveLastContext(selectedFolderId, newNote.id);
 
-    }
-    else {
-
-        const newNote =
-            createNote(noteData);
-
-        saveLastContext(
-            selectedFolderId,
-            newNote.id
-        );
-
+        // Schedule notifikasi untuk note baru
+        if (noteData.reminder?.enabled) {
+            await scheduleReminderNotification(newNote);
+        }
     }
 
     window.location.href = "dashboard.html";

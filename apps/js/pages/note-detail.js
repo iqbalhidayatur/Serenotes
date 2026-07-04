@@ -4,6 +4,8 @@ import {
 
 } from "../services/themeService.js";
 
+import { scheduleReminderNotification, cancelReminderNotification } from "../services/notificationService.js";
+
 initTheme();
 
 import {
@@ -125,7 +127,20 @@ addNoteInNoteBtn?.addEventListener("click", () => {
     window.location.href = `add-note.html?parentId=${note.id}&parentType=note`;
 });
 
-editor.addEventListener("input",autoSave);
+editor.addEventListener("click", (e) => {
+    if (e.target.closest(".heading-toggle")) return;
+
+    const clickedBlock = e.target.closest(".editor-block");
+
+    if (!clickedBlock) {
+        const lastBlock = editor.lastElementChild;
+        if (lastBlock && lastBlock.contentEditable === "true") {
+            placeCaretAtEnd(lastBlock);
+        } else {
+            createNewBlockAfter(editor.lastElementChild);
+        }
+    }
+});
 
 viewModeBtn?.addEventListener("click", toggleViewMode);
 
@@ -361,6 +376,18 @@ async function renderNote() {
 
     if (noteNameDisplay) {
         noteNameDisplay.textContent = note.noteName || "";
+        noteNameDisplay.addEventListener("input", () => {
+            note.noteName = noteNameDisplay.textContent.trim();
+            updateNote(note.id, { noteName: note.noteName });
+        });
+        noteNameDisplay.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                // Fokus ke block pertama editor
+                const firstBlock = editor.querySelector(".editor-block");
+                if (firstBlock) placeCaret(firstBlock);
+            }
+        });
     }
 
     renderBlocks();
@@ -462,6 +489,13 @@ function ensureHeadingToggle(block) {
     if (text === "")
         return;
 
+    // Simpan posisi caret sebelum insert toggle
+    const selection = window.getSelection();
+    let savedRange = null;
+    if (selection.rangeCount && block.contains(selection.anchorNode)) {
+        savedRange = selection.getRangeAt(0).cloneRange();
+    }
+
     const toggle = document.createElement("span");
 
     toggle.className = "heading-toggle";
@@ -475,6 +509,12 @@ function ensureHeadingToggle(block) {
     });
 
     block.insertBefore(toggle, block.firstChild);
+
+    // Restore posisi caret setelah toggle di-insert
+    if (savedRange) {
+        selection.removeAllRanges();
+        selection.addRange(savedRange);
+    }
 }
 
 function createBlock(block) {
@@ -514,7 +554,16 @@ function createBlock(block) {
             renderMediaCarousel(div, realMedia);
         })();
 
-        div.addEventListener("keydown", handleBlockKeyDown);
+        div.setAttribute("tabindex", "0");
+        div.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                createNewBlockAfter(div);
+            }
+        });
+        div.addEventListener("click", () => {
+            div.focus();
+        });
         editor.appendChild(div);
         return;
     }
@@ -557,7 +606,24 @@ function createBlock(block) {
         });
 
         div.addEventListener("keydown", handleBlockKeyDown);
-        div.addEventListener("input", autoSave);
+        div.addEventListener("input", () => {
+            // Simpan caret dulu sebelum ensureHeadingToggle
+            const sel = window.getSelection();
+            let savedRange = null;
+            if (sel.rangeCount && div.contains(sel.anchorNode)) {
+                savedRange = sel.getRangeAt(0).cloneRange();
+            }
+
+            ensureHeadingToggle(div);
+
+            if (savedRange) {
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            }
+
+            autoSave();
+        });
+
         editor.appendChild(div);
         return;
     }
@@ -960,11 +1026,12 @@ function createNewBlockAfter(currentBlock){
 
 }
 
-function applyBlockType(block,type){
+function applyBlockType(block, type) {
 
-    if(!block) return;
+    if (!block) return;
 
-    const nextType = type;
+    // Toggle: kalau type yang diklik sudah aktif, balik ke paragraph
+    const nextType = block.dataset.type === type ? "paragraph" : type;
 
     block.dataset.type = nextType;
     block.className = `editor-block ${nextType}`;
@@ -1857,6 +1924,16 @@ function insertMediaBlock(mediaItems) {
         editor.appendChild(div);
     }
 
+    div.setAttribute("tabindex", "0");
+    div.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            createNewBlockAfter(div);
+        }
+    });
+    div.addEventListener("click", () => {
+        div.focus();
+    });
     renderMediaCarousel(div, mediaItems);
     autoSave();
 }

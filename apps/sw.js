@@ -1,6 +1,5 @@
 const CACHE_NAME = "serenotes-v2";
 
-// Only cache same-origin assets — external CDN URLs often fail addAll()
 const STATIC_ASSETS = [
     "./welcome.html",
     "./dashboard.html",
@@ -69,6 +68,61 @@ self.addEventListener("fetch", (event) => {
                     return caches.match("./dashboard.html");
                 }
             });
+        })
+    );
+});
+
+// ── Reminder Notification Handler ─────────────────────
+// Dipanggil dari halaman via postMessage
+self.addEventListener("message", (event) => {
+    if (event.data?.type !== "CHECK_REMINDERS") return;
+
+    const notes = event.data.notes || [];
+    const now   = Date.now();
+
+    notes.forEach(note => {
+        const r = note.reminder;
+        if (!r?.enabled || r.completed || r.notified) return;
+
+        const reminderTime = new Date(r.datetime).getTime();
+
+        // Tampilkan notifikasi jika waktu sudah lewat (dalam window 5 menit ke belakang)
+        if (reminderTime <= now && reminderTime >= now - 5 * 60 * 1000) {
+            self.registration.showNotification("Serenotes Reminder 🔔", {
+                body:    note.noteName || note.title || "You have a reminder!",
+                icon:    "./style/assets/icon-192.png",
+                badge:   "./style/assets/icon-192.png",
+                tag:     `reminder-${note.id}`,
+                data:    { noteId: note.id, url: `./note-detail.html?id=${note.id}` },
+                actions: [
+                    { action: "open",   title: "Open Note" },
+                    { action: "dismiss", title: "Dismiss" }
+                ]
+            });
+        }
+    });
+});
+
+// Klik notifikasi → buka note
+self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+
+    const { url, noteId } = event.notification.data || {};
+
+    if (event.action === "dismiss") return;
+
+    event.waitUntil(
+        clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+            // Kalau sudah ada tab yang terbuka, fokus ke sana
+            for (const client of clientList) {
+                if (client.url.includes(noteId) && "focus" in client) {
+                    return client.focus();
+                }
+            }
+            // Kalau tidak ada, buka tab baru
+            if (clients.openWindow && url) {
+                return clients.openWindow(url);
+            }
         })
     );
 });

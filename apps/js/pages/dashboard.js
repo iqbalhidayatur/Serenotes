@@ -9,6 +9,17 @@ import {
     getDescendantFolderIds
 } from "../services/folderService.js";
 
+import { startReminderChecker } from "../services/notificationService.js";
+
+import { rescheduleAllReminders, setupNotificationListener } from "../services/notificationService.js";
+
+// Init notifikasi saat app dibuka
+setupNotificationListener();
+rescheduleAllReminders();
+
+// Mulai reminder checker saat dashboard dibuka
+startReminderChecker();
+
 initTheme();
 
 import { getAllNotes, deleteNote, togglePin } from "../services/noteService.js";

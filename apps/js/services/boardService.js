@@ -182,3 +182,46 @@ export function getColumnOfCard(board, cardId) {
     }
     return null;
 }
+
+export function addColumn(boardId, name) {
+    const boards = getBoards();
+    const board  = boards.find(b => b.id === boardId);
+    if (!board) return null;
+    const col = { id: crypto.randomUUID(), name, cards: [] };
+    board.columns.push(col);
+    saveBoards(boards);
+    return col;
+}
+
+export function renameColumn(boardId, columnId, name) {
+    const boards = getBoards();
+    const board  = boards.find(b => b.id === boardId);
+    if (!board) return false;
+    const col = board.columns.find(c => c.id === columnId);
+    if (!col) return false;
+    col.name = name;
+    saveBoards(boards);
+    return true;
+}
+
+export function deleteColumn(boardId, columnId) {
+    const boards = getBoards();
+    const board  = boards.find(b => b.id === boardId);
+    if (!board) return false;
+    board.columns = board.columns.filter(c => c.id !== columnId);
+    saveBoards(boards);
+    return true;
+}
+
+export function updateCardCover(boardId, columnId, cardId, coverDataUrl) {
+    const boards = getBoards();
+    const board  = boards.find(b => b.id === boardId);
+    if (!board) return false;
+    const col  = board.columns.find(c => c.id === columnId);
+    if (!col) return false;
+    const card = col.cards.find(c => c.id === cardId);
+    if (!card) return false;
+    card.cover = coverDataUrl;
+    saveBoards(boards);
+    return true;
+}
