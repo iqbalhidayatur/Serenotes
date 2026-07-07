@@ -15,6 +15,15 @@ import {
     deleteFolder
 } from "../services/folderService.js";
 
+const { App: CapApp } = window.Capacitor?.Plugins || {};
+
+if (CapApp) {
+    CapApp.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else window.location.href = "dashboard.html";
+    });
+}
+
 const explorerBreadcrumb = document.getElementById("explorerBreadcrumb");
 const explorerList       = document.getElementById("explorerList");
 const categoryStats      = document.getElementById("categoryStats");

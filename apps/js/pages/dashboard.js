@@ -19,6 +19,55 @@ initTheme();
 
 import { getAllNotes, deleteNote, togglePin } from "../services/noteService.js";
 
+// Back button handler — pakai Capacitor global, bukan ES module import
+const { App: CapApp } = window.Capacitor?.Plugins || {};
+
+let backPressedOnce = false;
+let backPressTimer  = null;
+
+if (CapApp) {
+    CapApp.addListener("backButton", () => {
+        if (backPressedOnce) {
+            clearTimeout(backPressTimer);
+            CapApp.exitApp();
+            return;
+        }
+
+        backPressedOnce = true;
+        showExitToast();
+
+        backPressTimer = setTimeout(() => {
+            backPressedOnce = false;
+        }, 2000);
+    });
+}
+
+function showExitToast() {
+    const existing = document.getElementById("exitToast");
+    if (existing) existing.remove();
+
+    const toast = document.createElement("div");
+    toast.id = "exitToast";
+    toast.textContent = "Press back again to exit";
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 90px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.75);
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        z-index: 9999;
+        pointer-events: none;
+        animation: fadeInOut 2s forwards;
+    `;
+
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+}
+
 const notesContainer = document.getElementById("notesContainer");
 const filterFolder = document.getElementById("filterFolder");
 const applyFilter = document.getElementById("applyFilter");

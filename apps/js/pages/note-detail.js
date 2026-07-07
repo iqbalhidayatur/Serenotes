@@ -244,7 +244,15 @@ document.addEventListener(
     showToolbar
 );
 
-editor.addEventListener("keyup", detectSlash);
+const slashObserver = new MutationObserver(() => {
+    detectSlashFromInput();
+});
+
+slashObserver.observe(editor, {
+    childList: true,
+    subtree: true,
+    characterData: true
+});
 
 if (deleteBtn) {
 
@@ -564,6 +572,7 @@ function createBlock(block) {
         div.addEventListener("click", () => {
             div.focus();
         });
+        initBlockDrag(div);
         editor.appendChild(div);
         return;
     }
@@ -624,6 +633,7 @@ function createBlock(block) {
             autoSave();
         });
 
+        initBlockDrag(div);
         editor.appendChild(div);
         return;
     }
@@ -647,6 +657,7 @@ function createBlock(block) {
         div.addEventListener("keydown", handleBlockKeyDown);
         div.addEventListener("input", autoSave);
 
+        initBlockDrag(div);
         editor.appendChild(div);
         return;
 
@@ -658,6 +669,7 @@ function createBlock(block) {
 
     div.addEventListener("keydown", handleBlockKeyDown);
     div.addEventListener("input", autoSave);
+    initBlockDrag(div);
     editor.appendChild(div);
 
 }
@@ -1018,6 +1030,8 @@ function createNewBlockAfter(currentBlock){
 
     block.addEventListener("input", autoSave);
 
+    initBlockDrag(block);
+
     currentBlock.after(block);
 
     placeCaret(block);
@@ -1123,6 +1137,51 @@ function detectSlash(e){
 
 }
 
+function detectSlashFromInput() {
+    const selection = window.getSelection();
+    
+    if (!selection.rangeCount) {
+        slashMenu.classList.remove("show");
+        return;
+    }
+
+    const anchorNode = selection.anchorNode;
+
+    const block = anchorNode?.nodeType === Node.TEXT_NODE
+        ? anchorNode.parentElement?.closest(".editor-block")
+        : anchorNode?.closest?.(".editor-block");
+
+    if (!block || block.contentEditable !== "true") {
+        slashMenu.classList.remove("show");
+        return;
+    }
+
+    const range    = selection.getRangeAt(0);
+    const preRange = document.createRange();
+    preRange.selectNodeContents(block);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    const beforeCaret = preRange.toString();
+
+    const lastSlash = beforeCaret.lastIndexOf("/");
+
+    if (lastSlash === -1) {
+        slashMenu.classList.remove("show");
+        return;
+    }
+
+    const beforeSlash = beforeCaret.substring(0, lastSlash);
+    const afterSlash  = beforeCaret.substring(lastSlash + 1);
+
+    const validTrigger = beforeSlash.length === 0 || /\s$/.test(beforeSlash);
+
+    if (!validTrigger || /\S/.test(afterSlash)) {
+        slashMenu.classList.remove("show");
+        return;
+    }
+
+    showSlashMenu(block);
+}
+
 function showSlashMenu(block) {
 
     slashMenu.classList.add("show");
@@ -1157,55 +1216,6 @@ function showSlashMenu(block) {
     slashMenu.style.top  = `${top}px`;
 
 }
-
-editor.addEventListener("input", () => {
-
-    const selection = window.getSelection();
-
-    if(!selection.rangeCount){
-
-        slashMenu.classList.remove("show");
-
-        return;
-
-    }
-
-    const block = selection.anchorNode?.parentElement
-        ?.closest(".editor-block");
-
-    if(!block){
-
-        slashMenu.classList.remove("show");
-
-        return;
-
-    }
-
-    const text = block.innerText;
-
-    const caret = selection.getRangeAt(0).startOffset;
-
-    const beforeCaret = text.substring(0, caret);
-
-    const slashIndex = beforeCaret.lastIndexOf("/");
-
-    if(slashIndex === -1){
-
-        slashMenu.classList.remove("show");
-
-        return;
-
-    }
-
-    const beforeSlash = beforeCaret.substring(0, slashIndex);
-
-    if(!(beforeSlash.length === 0 || /\s$/.test(beforeSlash))){
-
-        slashMenu.classList.remove("show");
-
-    }
-
-});
 
 function removeSlashTrigger(block){
 
@@ -1286,16 +1296,15 @@ function showToolbar() {
     let left = rect.left + (rect.width / 2) - (toolbarWidth / 2);
     left = Math.max(margin, Math.min(left, vw - toolbarWidth - margin));
 
-    // Posisi vertikal — di atas selection, fallback ke bawah jika tidak muat
-    let top = rect.top - toolbarHeight - 10;
-    if (top < margin) {
-        top = rect.bottom + 10;
+    // SESUDAH
+    // Posisi vertikal — selalu di bawah selection, fallback ke atas jika tidak muat
+    let top = rect.bottom + 10;
+    if (top + toolbarHeight > vh - margin) {
+        top = rect.top - toolbarHeight - 10;
     }
 
-    // Pastikan tidak keluar bawah layar
-    if (top + toolbarHeight > vh - margin) {
-        top = vh - toolbarHeight - margin;
-    }
+    // Pastikan tidak keluar atas layar
+    if (top < margin) top = margin;
 
     toolbar.style.left = `${left}px`;
     toolbar.style.top  = `${top}px`;
@@ -1520,6 +1529,189 @@ function autoSave() {
         blocks
     });
 
+}
+
+// ── Drag & Drop Blocks ─────────────────────────────────
+let dragSrcBlock  = null;
+let dragGhost     = null;
+let longPressTimer = null;
+const LONG_PRESS_MS = 500;
+
+function initBlockDrag(blockEl) {
+    let startX = 0;
+    let startY = 0;
+    let isDragging = false;
+
+    // ── Touch ──────────────────────────────────────────
+    blockEl.addEventListener("touchstart", (e) => {
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+
+        longPressTimer = setTimeout(() => {
+            isDragging = true;
+            startDrag(blockEl, touch.clientX, touch.clientY);
+        }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    blockEl.addEventListener("touchmove", (e) => {
+        const touch = e.touches[0];
+        const dx = Math.abs(touch.clientX - startX);
+        const dy = Math.abs(touch.clientY - startY);
+
+        // Kalau gerak sebelum long press selesai → cancel
+        if (!isDragging && (dx > 8 || dy > 8)) {
+            clearTimeout(longPressTimer);
+            return;
+        }
+
+        if (!isDragging) return;
+
+        e.preventDefault();
+        moveGhost(touch.clientX, touch.clientY);
+        highlightDropTarget(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    blockEl.addEventListener("touchend", (e) => {
+        clearTimeout(longPressTimer);
+        if (!isDragging) return;
+        isDragging = false;
+
+        const touch = e.changedTouches[0];
+        dropBlock(touch.clientX, touch.clientY);
+        endDrag();
+    });
+
+    blockEl.addEventListener("touchcancel", () => {
+        clearTimeout(longPressTimer);
+        isDragging = false;
+        endDrag();
+    });
+
+    // ── Mouse ──────────────────────────────────────────
+    blockEl.addEventListener("mousedown", (e) => {
+        if (e.target.closest("button, input, a, [contenteditable]")) return;
+
+        startX = e.clientX;
+        startY = e.clientY;
+
+        longPressTimer = setTimeout(() => {
+            isDragging = true;
+            startDrag(blockEl, e.clientX, e.clientY);
+
+            // Pasang listener ke document setelah drag dimulai
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup", onMouseUp);
+        }, LONG_PRESS_MS);
+    });
+
+    blockEl.addEventListener("mousemove", (e) => {
+        // Cancel long press kalau mouse bergerak sebelum timer selesai
+        if (!isDragging) {
+            const dx = Math.abs(e.clientX - startX);
+            const dy = Math.abs(e.clientY - startY);
+            if (dx > 8 || dy > 8) clearTimeout(longPressTimer);
+        }
+    });
+
+    blockEl.addEventListener("mouseup", () => {
+        clearTimeout(longPressTimer);
+    });
+
+    function onMouseMove(e) {
+        if (!isDragging) return;
+        moveGhost(e.clientX, e.clientY);
+        highlightDropTarget(e.clientX, e.clientY);
+    }
+
+    function onMouseUp(e) {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+
+        if (!isDragging) return;
+        isDragging = false;
+        dropBlock(e.clientX, e.clientY);
+        endDrag();
+    }
+}
+
+function startDrag(blockEl, x, y) {
+    dragSrcBlock = blockEl;
+    blockEl.classList.add("dragging");
+
+    // Buat ghost element
+    dragGhost = document.createElement("div");
+    dragGhost.className = "drag-ghost";
+    dragGhost.textContent = blockEl.innerText.trim().substring(0, 50) || "Block";
+    document.body.appendChild(dragGhost);
+    moveGhost(x, y);
+
+    // Vibrate di mobile
+    if (navigator.vibrate) navigator.vibrate(40);
+}
+
+function moveGhost(x, y) {
+    if (!dragGhost) return;
+    dragGhost.style.left = `${x + 12}px`;
+    dragGhost.style.top  = `${y - 20}px`;
+}
+
+function highlightDropTarget(x, y) {
+    // Hapus highlight sebelumnya
+    editor.querySelectorAll(".drag-over-top, .drag-over-bottom").forEach(el => {
+        el.classList.remove("drag-over-top", "drag-over-bottom");
+    });
+
+    const target = getBlockAtPoint(x, y);
+    if (!target || target === dragSrcBlock) return;
+
+    const rect   = target.getBoundingClientRect();
+    const midY   = rect.top + rect.height / 2;
+
+    if (y < midY) {
+        target.classList.add("drag-over-top");
+    } else {
+        target.classList.add("drag-over-bottom");
+    }
+}
+
+function getBlockAtPoint(x, y) {
+    // Sembunyikan ghost sementara agar tidak jadi target
+    if (dragGhost) dragGhost.style.display = "none";
+    const el = document.elementFromPoint(x, y);
+    if (dragGhost) dragGhost.style.display = "";
+
+    return el?.closest(".editor-block") || null;
+}
+
+function dropBlock(x, y) {
+    if (!dragSrcBlock) return;
+
+    const target = getBlockAtPoint(x, y);
+    if (!target || target === dragSrcBlock) return;
+
+    const rect = target.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+
+    if (y < midY) {
+        editor.insertBefore(dragSrcBlock, target);
+    } else {
+        target.after(dragSrcBlock);
+    }
+
+    autoSave();
+}
+
+function endDrag() {
+    dragSrcBlock?.classList.remove("dragging");
+    dragSrcBlock = null;
+
+    dragGhost?.remove();
+    dragGhost = null;
+
+    editor.querySelectorAll(".drag-over-top, .drag-over-bottom").forEach(el => {
+        el.classList.remove("drag-over-top", "drag-over-bottom");
+    });
 }
 
 function renderChecklist() {

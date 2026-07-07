@@ -11,6 +11,15 @@ import {
 
 import { getAllNotes } from "../services/noteService.js";
 
+const { App: CapApp } = window.Capacitor?.Plugins || {};
+
+if (CapApp) {
+    CapApp.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else window.location.href = "dashboard.html";
+    });
+}
+
 const suggestionContainer = document.getElementById("suggestionContainer");
 const clearInput          = document.getElementById("clearInput");
 const input               = document.getElementById("searchInput");

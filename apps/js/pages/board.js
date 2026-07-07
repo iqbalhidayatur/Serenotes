@@ -20,6 +20,15 @@ import {
     updateCardCover
 } from "../services/boardService.js";
 
+const { App: CapApp } = window.Capacitor?.Plugins || {};
+
+if (CapApp) {
+    CapApp.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else window.location.href = "dashboard.html";
+    });
+}
+
 let activeBoard = null;
 
 const boardList     = document.getElementById("boardList");

@@ -33,6 +33,15 @@ import {
 import { scheduleReminderNotification, cancelReminderNotification } from "../services/notificationService.js";
 
 // ── State ──────────────────────────────────────────────
+const { App: CapApp } = window.Capacitor?.Plugins || {};
+
+if (CapApp) {
+    CapApp.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else window.location.href = "dashboard.html";
+    });
+}
+
 const params      = new URLSearchParams(window.location.search);
 const noteId      = params.get("id");
 const urlParentId   = params.get("parentId");
@@ -659,13 +668,11 @@ async function handleSubmit(event) {
             });
         }
 
+    // SESUDAH
     } else if (noteNameInput.classList.contains("d-none")) {
         mergeNote(
             noteSelect.value,
-            [
-                { id: crypto.randomUUID(), type: "section",   text: noteData.title },
-                ...noteData.blocks
-            ]
+            noteData.blocks
         );
         saveLastContext(selectedFolderId, noteSelect.value);
 

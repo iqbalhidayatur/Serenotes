@@ -13,6 +13,15 @@ initTheme();
 import { clearNotes } from "../services/noteService.js";
 import { clearMedia } from "../services/mediaService.js";
 
+const { App: CapApp } = window.Capacitor?.Plugins || {};
+
+if (CapApp) {
+    CapApp.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else window.location.href = "dashboard.html";
+    });
+}
+
 const backupBtn   = document.getElementById("backupBtn");
 const clearDataBtn= document.getElementById("clearDataBtn");
 const profileName = document.getElementById("profileName");

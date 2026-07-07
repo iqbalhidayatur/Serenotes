@@ -15,6 +15,15 @@ import {
     getReminderStats
 } from "../services/reminderService.js";
 
+const { App: CapApp } = window.Capacitor?.Plugins || {};
+
+if (CapApp) {
+    CapApp.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else window.location.href = "dashboard.html";
+    });
+}
+
 const todayCount    = document.getElementById("todayCount");
 const upcomingCount = document.getElementById("upcomingCount");
 const completedCount= document.getElementById("completedCount");

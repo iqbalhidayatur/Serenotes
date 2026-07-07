@@ -1409,6 +1409,60 @@ body.read-mode .todo-checkbox {
     opacity: 0.88;
 }
 
+/* ── Drag & Drop Blocks ──────────────────────────────── */
+.editor-block {
+    position: relative;
+    transition: opacity 0.2s;
+}
+
+.editor-block.dragging {
+    opacity: 0.4;
+    border: 2px dashed var(--primary);
+    border-radius: 8px;
+}
+
+.editor-block.drag-over-top::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 999px;
+    pointer-events: none;
+}
+
+.editor-block.drag-over-bottom::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 999px;
+    pointer-events: none;
+}
+
+.drag-ghost {
+    position: fixed;
+    z-index: 9999;
+    background: var(--bg-card);
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--text-main);
+    max-width: 280px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.9;
+    pointer-events: none;
+    box-shadow: 0 8px 24px var(--shadow);
+}
+
 /* ── View Mode Toggle ───────────────────────────────── */
 .editor-block[contenteditable="false"] {
     cursor: default;
@@ -3969,4 +4023,11 @@ mark{
     display: flex;
     gap: 8px;
     margin-bottom: 16px;
+}
+
+@keyframes fadeInOut {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+    75%  { opacity: 1; }
+    100% { opacity: 0; }
 }

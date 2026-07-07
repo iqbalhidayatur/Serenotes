@@ -10,6 +10,15 @@ import {
     getAllNotes
 } from "../services/noteService.js";
 
+const { App: CapApp } = window.Capacitor?.Plugins || {};
+
+if (CapApp) {
+    CapApp.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else window.location.href = "dashboard.html";
+    });
+}
+
 const monthTitle = document.getElementById("monthTitle");
 const calendarGrid = document.getElementById("calendarGrid");
 const notesByDate = document.getElementById("notesByDate");
