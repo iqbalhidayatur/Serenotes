@@ -215,7 +215,7 @@ function renderList(){
 
             <div class="explorer-row-body">
                 <div class="explorer-row-title">
-                    ${note.title ? note.title : getPreview(note.blocks?.[0]?.text)}
+                    ${note.noteName ? note.noteName : getPreview(note.blocks?.[0]?.text)}
                 </div>
                 <div class="explorer-row-meta">${formatTime(note.date)}</div>
             </div>

@@ -249,15 +249,8 @@ function renderNotes(date) {
 
                     </div>
 
-                    <div
-                        class="calendar-note-title"
-                    >
-
-                        ${
-                            note.title ||
-                            (note.content || "").substring(0,35)
-                        }
-
+                    <div class="calendar-note-title">
+                        ${note.noteName || (note.content || "").substring(0,35)}
                     </div>
 
                 </div>

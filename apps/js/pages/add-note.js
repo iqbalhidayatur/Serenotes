@@ -26,6 +26,10 @@ import {
 } from "../services/reminderService.js";
 
 import {
+    getCurrentLocation
+} from "../services/locationService.js";
+
+import {
     uploadMedia,
     isSupportedMedia
 } from "../services/mediaService.js";
@@ -601,6 +605,16 @@ async function handleSubmit(event) {
     ? getNoteById(noteSelect.value)?.noteName || ""
     : noteNameInput.value.trim();
 
+    // Lokasi cuma diambil untuk note BARU (bukan saat edit note lama
+    // atau merge ke note lain) — biar tidak minta permission berulang-ulang.
+    const isBrandNewNote =
+        !editingNote &&
+        noteNameInput.classList.contains("d-none") === false;
+
+    const capturedLocation = isBrandNewNote
+        ? await getCurrentLocation()
+        : null;
+
     // Buat media blocks dari uploaded media
     const mediaBlocks = uploadedMedia.map(media => ({
         id:       crypto.randomUUID(),
@@ -647,7 +661,8 @@ async function handleSubmit(event) {
         })(),
         checklist:  editingNote?.checklist || [],
         media:      uploadedMedia,
-        tags:       editingNote?.tags || []
+        tags:       editingNote?.tags || [],
+        location:   editingNote?.location || capturedLocation || null
     };
 
     // DEBUG — hapus setelah masalah ditemukan

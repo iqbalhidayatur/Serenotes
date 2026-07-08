@@ -177,7 +177,7 @@ function createCard(note) {
                     <button
                         class="btn-delete-note"
                         data-id="${note.id}"
-                        data-title="${(note.title || '').replace(/"/g, '&quot;')}"
+                        data-title="${(note.noteName || '').replace(/"/g, '&quot;')}"
                         title="Delete note"
                     >
                         <i class="bi bi-trash3"></i>
@@ -185,7 +185,7 @@ function createCard(note) {
                 </div>
             </div>
             <div class="card-content pt-3">
-                <h4>${note.title ? note.title : (note.content || "").substring(0, 30) + "..."}</h4>
+                <h4>${note.noteName ? note.noteName : (note.content || "").substring(0, 30) + "..."}</h4>
                 <p>${truncate(note.content)}</p>
             </div>
             <div class="card-date pb-2">
@@ -376,7 +376,7 @@ function renderRecentNotes() {
                 </span>
 
                 <div class="recent-title">
-                    ${note.title}
+                    ${note.noteName || "Untitled"}
                 </div>
 
                 <div class="recent-date">

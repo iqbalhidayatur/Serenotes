@@ -253,7 +253,11 @@ export function createNote(data) {
 
     checklist:data.checklist || [],
 
-    media:data.media || []
+    media:data.media || [],
+
+    // Lokasi saat note dibuat (device geolocation, dengan izin user).
+    // null kalau permission ditolak / tidak tersedia / gagal ditangkap.
+    location: data.location || null
 
 };
 

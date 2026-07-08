@@ -106,8 +106,20 @@
 
     </div>
 
-    <!-- Note Name -->
-    <p id="noteNameDisplay" class="note-name text-secondary mb-1" contenteditable="true" spellcheck="false" data-placeholder="Untitled"></p>
+    <!-- Note Name (acts as a collapsible heading for the whole note body) -->
+    <div id="titleRow" class="title-row d-flex align-items-start">
+        <span
+            id="titleToggle"
+            class="heading-toggle title-toggle"
+            title="Collapse/expand this note"
+        >
+            <i class="bi bi-chevron-down"></i>
+        </span>
+        <p id="noteNameDisplay" class="note-name text-secondary mb-1" contenteditable="true" spellcheck="false" data-placeholder="Untitled"></p>
+    </div>
+
+    <!-- Everything below the title collapses when the title toggle is closed -->
+    <div id="noteBodyWrap">
 
     <!-- Date & Reminder -->
 
@@ -133,6 +145,21 @@
             id="reminderStatus"
             class="d-flex align-items-center gap-2 text-primary"
         >
+
+        </div>
+
+        <div
+            id="locationMetaWrap"
+            class="d-flex align-items-center gap-2 d-none"
+        >
+
+            <span class="mx-1 text-secondary">
+                •
+            </span>
+
+            <i class="bi bi-geo-alt"></i>
+
+            <span id="noteLocation"></span>
 
         </div>
 
@@ -185,6 +212,9 @@
         <div id="noteFoldersList"></div>
 
     </section>
+
+    </div>
+    <!-- /#noteBodyWrap -->
 
 </main>
 
@@ -273,12 +303,45 @@
         Attachment
     </button>
 
+    <button data-type="note-link">
+        <i class="bi bi-file-earmark-text"></i> Note
+    </button>
+
 </div>
 
 <script
     type="module"
     src="js/pages/note-detail.js"
 ></script>
+
+<!-- ── Media Preview Lightbox ──────────────────────── -->
+<div id="mediaLightbox" class="media-lightbox" role="dialog" aria-modal="true" aria-label="Media preview">
+    <div class="media-lightbox-backdrop"></div>
+
+    <div class="media-lightbox-header">
+        <span class="media-lightbox-title" id="lightboxTitle"></span>
+        <div class="media-lightbox-actions">
+            <span class="media-lightbox-counter" id="lightboxCounter"></span>
+            <a class="media-lightbox-download" id="lightboxDownload" download title="Download">
+                <i class="bi bi-download"></i>
+            </a>
+            <button class="media-lightbox-close" id="lightboxClose" title="Tutup">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="media-lightbox-body" id="lightboxBody"></div>
+
+    <button class="media-lightbox-nav prev" id="lightboxPrev">
+        <i class="bi bi-chevron-left"></i>
+    </button>
+    <button class="media-lightbox-nav next" id="lightboxNext">
+        <i class="bi bi-chevron-right"></i>
+    </button>
+
+    <div class="media-lightbox-dots" id="lightboxDots"></div>
+</div>
 
 </body>
 

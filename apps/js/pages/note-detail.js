@@ -4,12 +4,20 @@ import {
 
 } from "../services/themeService.js";
 
-import { scheduleReminderNotification, cancelReminderNotification } from "../services/notificationService.js";
+import {
+    scheduleReminderNotification,
+    cancelReminderNotification
+} from "../services/notificationService.js";
+
+import {
+    formatLocationLabel
+} from "../services/locationService.js";
 
 initTheme();
 
 import {
     getNoteById,
+    createNote,
     deleteNote,
     updateNote
 } from "../services/noteService.js";
@@ -57,6 +65,8 @@ const editor =
 document.getElementById("editor");
 
 const noteNameDisplay = document.getElementById("noteNameDisplay");
+const titleToggle = document.getElementById("titleToggle");
+const noteBodyWrap = document.getElementById("noteBodyWrap");
 
 const mediaContainer = document.getElementById("mediaContainer");
 const reminderContainer = document.getElementById("reminderContainer");
@@ -398,11 +408,15 @@ async function renderNote() {
         });
     }
 
+    applyTitleCollapsedState(!!note.titleCollapsed);
+
     renderBlocks();
     
     renderChildren();
 
     noteDate.textContent = formatDate(note.date);
+
+    renderLocation();
 
     renderVoiceNote();
 
@@ -485,6 +499,46 @@ function renderBlocks(){
 
 }
 
+function applyTitleCollapsedState(collapsed) {
+
+    if (!titleToggle || !noteBodyWrap) return;
+
+    titleToggle.classList.toggle("collapsed", collapsed);
+    noteBodyWrap.classList.toggle("note-body-hidden", collapsed);
+}
+
+titleToggle?.addEventListener("click", (e) => {
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const collapsed = !titleToggle.classList.contains("collapsed");
+
+    applyTitleCollapsedState(collapsed);
+
+    note.titleCollapsed = collapsed;
+    updateNote(note.id, { titleCollapsed: collapsed });
+
+});
+
+function renderLocation() {
+
+    const wrap = document.getElementById("locationMetaWrap");
+    const label = document.getElementById("noteLocation");
+
+    if (!wrap || !label) return;
+
+    const text = formatLocationLabel(note.location);
+
+    if (!text) {
+        wrap.classList.add("d-none");
+        return;
+    }
+
+    label.textContent = text;
+    wrap.classList.remove("d-none");
+}
+
 function ensureHeadingToggle(block) {
 
     block.querySelectorAll(":scope > .heading-toggle").forEach(el => el.remove());
@@ -542,6 +596,7 @@ function createBlock(block) {
     if (block.type === "media") {
         div.contentEditable      = false;
         div.dataset.mediaIds     = block.mediaIds || "[]";
+        div.dataset.layout       = block.layout   || "carousel";
 
         const ids = JSON.parse(block.mediaIds || "[]");
 
@@ -559,7 +614,7 @@ function createBlock(block) {
                     mimeType: data.mimeType
                 });
             }
-            renderMediaCarousel(div, realMedia);
+            renderMediaBlock(div, realMedia, div.dataset.layout);
         })();
 
         div.setAttribute("tabindex", "0");
@@ -572,6 +627,13 @@ function createBlock(block) {
         div.addEventListener("click", () => {
             div.focus();
         });
+        initBlockDrag(div);
+        editor.appendChild(div);
+        return;
+    }
+
+    if (block.type === "note-link") {
+        renderNoteLinkBlock(div, block.linkedNoteId);
         initBlockDrag(div);
         editor.appendChild(div);
         return;
@@ -1042,7 +1104,12 @@ function createNewBlockAfter(currentBlock){
 
 function applyBlockType(block, type) {
 
+    if (type === "note-link") {
+        createNoteLinkBlock(block);
+        return;
+    }
     if (!block) return;
+
 
     // Toggle: kalau type yang diklik sudah aktif, balik ke paragraph
     const nextType = block.dataset.type === type ? "paragraph" : type;
@@ -1054,6 +1121,62 @@ function applyBlockType(block, type) {
 
     autoSave();
     updateToolbarState();
+
+}
+
+function createNoteLinkBlock(block) {
+
+    const name = prompt("Note name", "Untitled");
+
+    // User cancel → block dikembalikan jadi paragraph kosong
+    if (name === null) {
+        block.dataset.type = "paragraph";
+        block.className = "editor-block paragraph";
+        autoSave();
+        return;
+    }
+
+    const childNote = createNote({
+        noteName: name.trim() || "Untitled",
+        parentId: note.id,
+        parentType: "note",
+        category: note.category || ""
+    });
+
+    renderNoteLinkBlock(block, childNote.id);
+
+    renderChildren(); // biar konsisten dengan list "Sub-pages" di bawah
+
+    autoSave();
+
+}
+
+function renderNoteLinkBlock(div, linkedNoteId) {
+
+    const linked = getNoteById(linkedNoteId);
+
+    div.dataset.type = "note-link";
+    div.className = "editor-block note-link";
+    div.dataset.linkedNoteId = linkedNoteId;
+    div.contentEditable = false;
+
+    div.innerHTML = `
+        <i class="bi bi-file-earmark-text"></i>
+        <span class="note-link-name">${linked?.noteName || "Untitled"}</span>
+    `;
+
+    div.setAttribute("tabindex", "0");
+
+    div.addEventListener("click", () => {
+        window.location.href = `note-detail.html?id=${linkedNoteId}`;
+    });
+
+    div.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            window.location.href = `note-detail.html?id=${linkedNoteId}`;
+        }
+    });
 
 }
 
@@ -1509,10 +1632,18 @@ function autoSave() {
                 id:       block.dataset.id,
                 type:     "media",
                 text:     "",
-                mediaIds: block.dataset.mediaIds || "[]"
+                mediaIds: block.dataset.mediaIds || "[]",
+                layout:   block.dataset.layout   || "carousel"
             });
 
-        } else {
+        } else if (block.dataset.type === "note-link") {
+            blocks.push({
+                id: block.dataset.id,
+                type: "note-link",
+                text: "",
+                linkedNoteId: block.dataset.linkedNoteId || ""
+            });
+        }else {
             const clone = block.cloneNode(true);
             clone.querySelectorAll(".heading-toggle").forEach(el => el.remove());
             blocks.push({
@@ -2094,13 +2225,14 @@ function saveTags() {
 }
 
 // ── Media Block ─────────────────────────────────────────
-function insertMediaBlock(mediaItems) {
+function insertMediaBlock(mediaItems, layout = "carousel") {
     const blockId = crypto.randomUUID();
 
     const div = document.createElement("div");
     div.className = "editor-block media";
-    div.dataset.id   = blockId;
-    div.dataset.type = "media";
+    div.dataset.id      = blockId;
+    div.dataset.type    = "media";
+    div.dataset.layout  = layout;
     div.dataset.mediaIds = JSON.stringify(mediaItems.map(m => m.refId));
     div.contentEditable = false;
 
@@ -2126,11 +2258,14 @@ function insertMediaBlock(mediaItems) {
     div.addEventListener("click", () => {
         div.focus();
     });
-    renderMediaCarousel(div, mediaItems);
+    renderMediaBlock(div, mediaItems, layout);
     autoSave();
 }
 
-async function renderMediaCarousel(blockEl, mediaItems) {
+// ── Media block dispatcher ──────────────────────────────
+async function renderMediaBlock(blockEl, mediaItems, layout) {
+    layout = layout || blockEl.dataset.layout || "carousel";
+
     if (!mediaItems || mediaItems.length === 0) {
         blockEl.innerHTML = "";
         return;
@@ -2145,99 +2280,453 @@ async function renderMediaCarousel(blockEl, mediaItems) {
         slides.push({ media, url, data });
     }
 
-    if (!slides.length) {
-        blockEl.innerHTML = "";
-        return;
-    }
+    if (!slides.length) { blockEl.innerHTML = ""; return; }
 
-    let current = 0;
+    if (layout === "row")      { buildRowLayout(blockEl, slides); return; }
+    if (layout === "column")   { buildColumnLayout(blockEl, slides); return; }
+    if (layout === "grid3")    { buildGrid3Layout(blockEl, slides); return; }
+    if (layout === "grid2x2")  { buildGrid2x2Layout(blockEl, slides); return; }
+    buildCarouselLayout(blockEl, slides);
+}
 
-    function buildCarousel() {
-        const total = slides.length;
+// Keep old name as alias so nothing else breaks
+const renderMediaCarousel = (blockEl, mediaItems) =>
+    renderMediaBlock(blockEl, mediaItems, blockEl.dataset.layout || "carousel");
 
-        blockEl.innerHTML = `
-            <div class="media-carousel">
-                <div class="media-carousel-track" id="track_${blockEl.dataset.id}">
-                    ${slides.map(({ media, url }) => `
-                        <div class="media-carousel-slide">
-                            ${getSlideContent(media, url)}
-                        </div>
-                    `).join("")}
-                </div>
+// ── Shared: layout switcher toolbar ─────────────────────
+function buildLayoutToolbar(blockEl, slides, activeLayout) {
+    const id = blockEl.dataset.id;
+    return `
+        <div class="media-layout-toolbar" data-block="${id}">
+            <button class="media-layout-btn ${activeLayout === "carousel" ? "active" : ""}" data-layout="carousel" title="Carousel">
+                <i class="bi bi-layout-sidebar-inset-reverse"></i>
+            </button>
+            <button class="media-layout-btn ${activeLayout === "row" ? "active" : ""}" data-layout="row" title="Row (scroll horizontal)">
+                <i class="bi bi-layout-three-columns"></i>
+            </button>
+            <button class="media-layout-btn ${activeLayout === "column" ? "active" : ""}" data-layout="column" title="Column">
+                <i class="bi bi-layout-split"></i>
+            </button>
+            <button class="media-layout-btn ${activeLayout === "grid3" ? "active" : ""}" data-layout="grid3" title="Grid 3 kolom">
+                <i class="bi bi-grid-3x2-gap"></i>
+            </button>
+            <button class="media-layout-btn ${activeLayout === "grid2x2" ? "active" : ""}" data-layout="grid2x2" title="Grid 2x2">
+                <i class="bi bi-grid-fill"></i>
+            </button>
+            <button class="media-carousel-del ml-auto" data-block="${id}" title="Hapus block ini">
+                <i class="bi bi-trash3"></i>
+            </button>
+        </div>
+    `;
+}
 
-                ${total > 1 ? `
-                    <button class="media-carousel-nav prev" id="prev_${blockEl.dataset.id}">
-                        <i class="bi bi-chevron-left"></i>
-                    </button>
-                    <button class="media-carousel-nav next" id="next_${blockEl.dataset.id}">
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                ` : ""}
-
-                <div class="media-carousel-footer">
-                    <span class="media-carousel-filename" id="fname_${blockEl.dataset.id}">
-                        ${slides[0].media.filename}
-                    </span>
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="media-carousel-dots" id="dots_${blockEl.dataset.id}">
-                            ${slides.map((_, i) => `
-                                <div class="media-carousel-dot ${i === 0 ? "active" : ""}"></div>
-                            `).join("")}
-                        </div>
-                        <button class="media-carousel-del" data-block="${blockEl.dataset.id}" title="Hapus attachment ini">
-                            <i class="bi bi-trash3"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        const track   = blockEl.querySelector(`#track_${blockEl.dataset.id}`);
-        const dots    = blockEl.querySelectorAll(".media-carousel-dot");
-        const fname   = blockEl.querySelector(`#fname_${blockEl.dataset.id}`);
-        const prevBtn = blockEl.querySelector(`#prev_${blockEl.dataset.id}`);
-        const nextBtn = blockEl.querySelector(`#next_${blockEl.dataset.id}`);
-        const delBtn  = blockEl.querySelector(".media-carousel-del");
-
-        function goTo(index) {
-            current = index;
-            track.style.transform = `translateX(-${current * 100}%)`;
-            dots.forEach((d, i) => d.classList.toggle("active", i === current));
-            fname.textContent = slides[current].media.filename;
-            if (prevBtn) prevBtn.disabled = current === 0;
-            if (nextBtn) nextBtn.disabled = current === total - 1;
-        }
-
-        prevBtn?.addEventListener("click", () => { if (current > 0) goTo(current - 1); });
-        nextBtn?.addEventListener("click", () => { if (current < total - 1) goTo(current + 1); });
-
-        // Swipe support
-        let startX = 0;
-        track.addEventListener("touchstart", e => { startX = e.touches[0].clientX; });
-        track.addEventListener("touchend",   e => {
-            const diff = startX - e.changedTouches[0].clientX;
-            if (diff > 40 && current < total - 1) goTo(current + 1);
-            if (diff < -40 && current > 0) goTo(current - 1);
-        });
-
-        goTo(0);
-
-        // Delete seluruh block
-        delBtn?.addEventListener("click", async () => {
-            if (!confirm("Hapus attachment ini?")) return;
-            const ids = JSON.parse(blockEl.dataset.mediaIds || "[]");
-            for (const id of ids) {
-                await deleteMedia(id);
-                note.media = (note.media || []).filter(m => m.refId !== id);
-            }
-            updateNote(note.id, { media: note.media });
-            blockEl.remove();
+function attachLayoutSwitcher(blockEl, slides) {
+    // ── Layout switcher buttons ──────────────────────────
+    blockEl.querySelectorAll(".media-layout-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const newLayout = btn.dataset.layout;
+            blockEl.dataset.layout = newLayout;
+            renderMediaBlock(blockEl, slides.map(s => s.media), newLayout);
             autoSave();
         });
+    });
+
+    blockEl.querySelector(".media-carousel-del")?.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!confirm("Hapus attachment ini?")) return;
+        const ids = JSON.parse(blockEl.dataset.mediaIds || "[]");
+        for (const id of ids) {
+            await deleteMedia(id);
+            note.media = (note.media || []).filter(m => m.refId !== id);
+        }
+        updateNote(note.id, { media: note.media });
+        blockEl.remove();
+        autoSave();
+    });
+
+    // ── Click-to-preview ────────────────────────────────
+    attachPreviewClicks(blockEl, slides);
+}
+
+// ── Click-to-preview: pasang ke semua img/video/audio/file di block ──
+function attachPreviewClicks(blockEl, slides) {
+    // Carousel: klik pada slide area (bukan nav/footer)
+    const track = blockEl.querySelector(".media-carousel-track");
+    if (track) {
+        track.querySelectorAll(".media-carousel-slide").forEach((slide, i) => {
+            slide.addEventListener("click", (e) => {
+                e.stopPropagation();
+                window.openLightbox(slides, i);
+            });
+            slide.style.cursor = "zoom-in";
+        });
     }
 
-    buildCarousel();
+    // Row, grid: klik per item
+    blockEl.querySelectorAll(
+        ".media-row-item, .media-grid-item, .media-column-item"
+    ).forEach((item, i) => {
+        item.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.openLightbox(slides, i);
+        });
+        item.style.cursor = "zoom-in";
+    });
 }
+
+// ── Layout 1: Carousel ──────────────────────────────────
+function buildCarouselLayout(blockEl, slides) {
+    const id    = blockEl.dataset.id;
+    const total = slides.length;
+    let current = 0;
+
+    blockEl.innerHTML = `
+        ${buildLayoutToolbar(blockEl, slides, "carousel")}
+        <div class="media-carousel">
+            <div class="media-carousel-track" id="track_${id}">
+                ${slides.map(({ media, url }) => `
+                    <div class="media-carousel-slide">
+                        ${getSlideContent(media, url)}
+                    </div>
+                `).join("")}
+            </div>
+
+            ${total > 1 ? `
+                <button class="media-carousel-nav prev" id="prev_${id}">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <button class="media-carousel-nav next" id="next_${id}">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            ` : ""}
+
+            <div class="media-carousel-footer">
+                <span class="media-carousel-filename" id="fname_${id}">
+                    ${slides[0].media.filename}
+                </span>
+                <div class="media-carousel-dots" id="dots_${id}">
+                    ${slides.map((_, i) => `
+                        <div class="media-carousel-dot ${i === 0 ? "active" : ""}"></div>
+                    `).join("")}
+                </div>
+            </div>
+        </div>
+    `;
+
+    const track   = blockEl.querySelector(`#track_${id}`);
+    const dots    = blockEl.querySelectorAll(".media-carousel-dot");
+    const fname   = blockEl.querySelector(`#fname_${id}`);
+    const prevBtn = blockEl.querySelector(`#prev_${id}`);
+    const nextBtn = blockEl.querySelector(`#next_${id}`);
+
+    function goTo(index) {
+        current = index;
+        track.style.transform = `translateX(-${current * 100}%)`;
+        dots.forEach((d, i) => d.classList.toggle("active", i === current));
+        fname.textContent = slides[current].media.filename;
+        if (prevBtn) prevBtn.disabled = current === 0;
+        if (nextBtn) nextBtn.disabled = current === total - 1;
+    }
+
+    prevBtn?.addEventListener("click", () => { if (current > 0) goTo(current - 1); });
+    nextBtn?.addEventListener("click", () => { if (current < total - 1) goTo(current + 1); });
+
+    let startX = 0;
+    track.addEventListener("touchstart", e => { startX = e.touches[0].clientX; });
+    track.addEventListener("touchend",   e => {
+        const diff = startX - e.changedTouches[0].clientX;
+        if (diff > 40 && current < total - 1) goTo(current + 1);
+        if (diff < -40 && current > 0) goTo(current - 1);
+    });
+
+    goTo(0);
+    attachLayoutSwitcher(blockEl, slides);
+}
+
+// ── Layout 2: Row (horizontal scroll) ──────────────────
+function buildRowLayout(blockEl, slides) {
+    blockEl.innerHTML = `
+        ${buildLayoutToolbar(blockEl, slides, "row")}
+        <div class="media-row">
+            ${slides.map(({ media, url }) => `
+                <div class="media-row-item">
+                    ${getSlideContent(media, url)}
+                    <div class="media-row-filename">${media.filename}</div>
+                </div>
+            `).join("")}
+        </div>
+    `;
+    attachLayoutSwitcher(blockEl, slides);
+}
+
+// ── Layout 3: Column ────────────────────────────────────
+function buildColumnLayout(blockEl, slides) {
+    blockEl.innerHTML = `
+        ${buildLayoutToolbar(blockEl, slides, "column")}
+        <div class="media-column">
+            ${slides.map(({ media, url }) => `
+                <div class="media-column-item">
+                    ${getSlideContent(media, url)}
+                    <div class="media-column-filename">${media.filename}</div>
+                </div>
+            `).join("")}
+        </div>
+    `;
+    attachLayoutSwitcher(blockEl, slides);
+}
+
+// ── Layout 4: Grid 3x1 (3 kolom, banyak baris) ──────────
+function buildGrid3Layout(blockEl, slides) {
+    blockEl.innerHTML = `
+        ${buildLayoutToolbar(blockEl, slides, "grid3")}
+        <div class="media-grid media-grid-3">
+            ${slides.map(({ media, url }) => `
+                <div class="media-grid-item">
+                    ${getSlideContent(media, url)}
+                    <div class="media-grid-filename">${media.filename}</div>
+                </div>
+            `).join("")}
+        </div>
+    `;
+    attachLayoutSwitcher(blockEl, slides);
+}
+
+// ── Layout 5: Grid 2x2 ──────────────────────────────────
+function buildGrid2x2Layout(blockEl, slides) {
+    // Tampilkan max 4 item, sisanya dengan overlay "+N"
+    const visible = slides.slice(0, 4);
+    const extra   = slides.length - 4;
+
+    blockEl.innerHTML = `
+        ${buildLayoutToolbar(blockEl, slides, "grid2x2")}
+        <div class="media-grid media-grid-2x2">
+            ${visible.map(({ media, url }, i) => `
+                <div class="media-grid-item ${i === 3 && extra > 0 ? "has-more" : ""}">
+                    ${getSlideContent(media, url)}
+                    ${i === 3 && extra > 0 ? `<div class="media-grid-more">+${extra + 1}</div>` : ""}
+                    <div class="media-grid-filename">${media.filename}</div>
+                </div>
+            `).join("")}
+        </div>
+    `;
+    attachLayoutSwitcher(blockEl, slides);
+}
+
+// ══════════════════════════════════════════════════════════
+// ── Media Preview Lightbox ────────────────────────────────
+// ══════════════════════════════════════════════════════════
+(function initLightbox() {
+    const lb        = document.getElementById("mediaLightbox");
+    const backdrop  = lb?.querySelector(".media-lightbox-backdrop");
+    const body      = document.getElementById("lightboxBody");
+    const title     = document.getElementById("lightboxTitle");
+    const counter   = document.getElementById("lightboxCounter");
+    const download  = document.getElementById("lightboxDownload");
+    const closeBtn  = document.getElementById("lightboxClose");
+    const prevBtn   = document.getElementById("lightboxPrev");
+    const nextBtn   = document.getElementById("lightboxNext");
+    const dotsWrap  = document.getElementById("lightboxDots");
+
+    if (!lb) return;
+
+    let slides  = [];   // [{ media, url }]
+    let current = 0;
+    let objectURLs = [];
+
+    // ── Open ────────────────────────────────────────────
+    window.openLightbox = function(slideList, startIndex = 0) {
+        slides    = slideList;
+        current   = startIndex;
+        objectURLs = slideList.map(s => s.url);
+
+        buildDots();
+        showSlide(current);
+
+        lb.classList.add("open");
+        document.body.style.overflow = "hidden";
+    };
+
+    // ── Close ───────────────────────────────────────────
+    function closeLightbox() {
+        lb.classList.remove("open");
+        document.body.style.overflow = "";
+        body.innerHTML = "";
+        slides = [];
+        objectURLs = [];
+    }
+
+    closeBtn?.addEventListener("click", closeLightbox);
+    backdrop?.addEventListener("click", closeLightbox);
+
+    // ── Navigation ──────────────────────────────────────
+    function showSlide(index) {
+        current = Math.max(0, Math.min(index, slides.length - 1));
+        const { media, url } = slides[current];
+
+        // Content
+        body.innerHTML = getPreviewContent(media, url);
+
+        // Header
+        title.textContent   = media.filename;
+        counter.textContent = slides.length > 1 ? `${current + 1} / ${slides.length}` : "";
+        download.href       = url;
+        download.download   = media.filename;
+
+        // Nav buttons
+        prevBtn.style.display = (slides.length > 1 && current > 0)               ? "" : "none";
+        nextBtn.style.display = (slides.length > 1 && current < slides.length - 1) ? "" : "none";
+
+        // Dots
+        dotsWrap.querySelectorAll(".lb-dot").forEach((d, i) =>
+            d.classList.toggle("active", i === current)
+        );
+
+        // Pinch-zoom reset
+        resetZoom();
+    }
+
+    prevBtn?.addEventListener("click", () => showSlide(current - 1));
+    nextBtn?.addEventListener("click", () => showSlide(current + 1));
+
+    // ── Dots ────────────────────────────────────────────
+    function buildDots() {
+        dotsWrap.innerHTML = "";
+        if (slides.length <= 1) return;
+        slides.forEach((_, i) => {
+            const d = document.createElement("div");
+            d.className = "lb-dot" + (i === 0 ? " active" : "");
+            d.addEventListener("click", () => showSlide(i));
+            dotsWrap.appendChild(d);
+        });
+    }
+
+    // ── Keyboard ────────────────────────────────────────
+    document.addEventListener("keydown", (e) => {
+        if (!lb.classList.contains("open")) return;
+        if (e.key === "ArrowLeft")  showSlide(current - 1);
+        if (e.key === "ArrowRight") showSlide(current + 1);
+        if (e.key === "Escape")     closeLightbox();
+    });
+
+    // ── Swipe (touch) ───────────────────────────────────
+    let touchStartX = 0, touchStartY = 0;
+    body.addEventListener("touchstart", e => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    body.addEventListener("touchend", e => {
+        const dx = touchStartX - e.changedTouches[0].clientX;
+        const dy = Math.abs(touchStartY - e.changedTouches[0].clientY);
+        if (Math.abs(dx) > 50 && dy < 60) {
+            if (dx > 0) showSlide(current + 1);
+            else        showSlide(current - 1);
+        }
+    }, { passive: true });
+
+    // ── Pinch-zoom (images only) ─────────────────────────
+    let scale = 1, lastScale = 1;
+    let originX = 0, originY = 0;
+    let isDragging = false, dragStartX = 0, dragStartY = 0;
+    let panX = 0, panY = 0, lastPanX = 0, lastPanY = 0;
+
+    function resetZoom() {
+        scale = 1; lastScale = 1;
+        panX  = 0; panY  = 0; lastPanX = 0; lastPanY = 0;
+        applyTransform();
+    }
+
+    function applyTransform() {
+        const img = body.querySelector("img");
+        if (!img) return;
+        img.style.transform       = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        img.style.transformOrigin = `${originX}px ${originY}px`;
+        img.style.cursor          = scale > 1 ? "grab" : "default";
+    }
+
+    body.addEventListener("touchstart", e => {
+        if (e.touches.length === 2) {
+            const dx = e.touches[1].clientX - e.touches[0].clientX;
+            const dy = e.touches[1].clientY - e.touches[0].clientY;
+            lastScale = Math.hypot(dx, dy);
+            const rect = body.getBoundingClientRect();
+            originX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+            originY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        } else if (e.touches.length === 1 && scale > 1) {
+            isDragging = true;
+            dragStartX = e.touches[0].clientX - panX;
+            dragStartY = e.touches[0].clientY - panY;
+        }
+    }, { passive: true });
+
+    body.addEventListener("touchmove", e => {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            const dx = e.touches[1].clientX - e.touches[0].clientX;
+            const dy = e.touches[1].clientY - e.touches[0].clientY;
+            const newDist = Math.hypot(dx, dy);
+            scale = Math.min(5, Math.max(1, scale * (newDist / lastScale)));
+            lastScale = newDist;
+            applyTransform();
+        } else if (isDragging && scale > 1) {
+            panX = e.touches[0].clientX - dragStartX;
+            panY = e.touches[0].clientY - dragStartY;
+            applyTransform();
+        }
+    }, { passive: false });
+
+    body.addEventListener("touchend", e => {
+        if (e.touches.length === 0) {
+            isDragging = false;
+            if (scale < 1.1) resetZoom();
+        }
+    }, { passive: true });
+
+    // Double-tap to zoom
+    let lastTap = 0;
+    body.addEventListener("touchend", e => {
+        const img = body.querySelector("img");
+        if (!img) return;
+        const now = Date.now();
+        if (now - lastTap < 300) {
+            if (scale > 1) { resetZoom(); }
+            else {
+                const rect = body.getBoundingClientRect();
+                originX = e.changedTouches[0].clientX - rect.left;
+                originY = e.changedTouches[0].clientY - rect.top;
+                scale = 2.5;
+                applyTransform();
+            }
+        }
+        lastTap = now;
+    }, { passive: true });
+
+    // ── Content builder ─────────────────────────────────
+    function getPreviewContent(media, url) {
+        const type = media.type || media.mimeType?.split("/")[0];
+        if (type === "photo" || type === "image" || type === "gif") {
+            return `<img src="${url}" alt="${media.filename}" draggable="false">`;
+        }
+        if (type === "video") {
+            return `<video controls autoplay playsinline>
+                        <source src="${url}" type="${media.mimeType}">
+                    </video>`;
+        }
+        if (type === "voice" || type === "audio") {
+            return `<div class="lb-audio-wrap">
+                        <i class="bi bi-music-note-beamed lb-audio-icon"></i>
+                        <audio controls autoplay>
+                            <source src="${url}" type="${media.mimeType}">
+                        </audio>
+                        <p class="lb-audio-name">${media.filename}</p>
+                    </div>`;
+        }
+        return `<div class="lb-file-wrap">
+                    <i class="bi bi-file-earmark lb-file-icon"></i>
+                    <p class="lb-file-name">${media.filename}</p>
+                </div>`;
+    }
+})();
 
 function getSlideContent(media, url) {
     const type = media.type || media.mimeType?.split("/")[0];

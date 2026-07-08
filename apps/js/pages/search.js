@@ -97,11 +97,11 @@ function handleSearch() {
         notes = [...notes].sort((a, b) => new Date(a.date) - new Date(b.date));
     } else if (sortBy === "az") {
         notes = [...notes].sort((a, b) =>
-            (a.title || "").localeCompare(b.title || "")
+            (a.noteName || "").localeCompare(b.noteName || "")
         );
     } else if (sortBy === "za") {
         notes = [...notes].sort((a, b) =>
-            (b.title || "").localeCompare(a.title || "")
+            (b.noteName || "").localeCompare(a.noteName || "")
         );
     }
     // "relevance" → biarkan urutan dari search() yang sudah scored
@@ -125,7 +125,7 @@ function handleSearch() {
 
         result.innerHTML += `
             <div class="search-card" onclick="location.href='note-detail.html?id=${note.id}'">
-                <h5>${highlight(note.title || "Untitled", keyword)}</h5>
+                <h5>${highlight(note.noteName || "Untitled", keyword)}</h5>
                 <p>${highlight(preview(getPreviewText(note)), keyword)}</p>
                 <small>${note.category || ""}</small>
                 ${tagsHtml ? `<div class="note-card-tags">${tagsHtml}</div>` : ""}
