@@ -137,6 +137,19 @@
 
         </div>
 
+        <div
+            id="locationMetaWrap"
+            class="d-flex align-items-center gap-2 d-none"
+        >
+
+            <span class="text-secondary">•</span>
+
+            <i class="bi bi-geo-alt"></i>
+
+            <span id="noteLocation"></span>
+
+        </div>
+
         <span class="mx-1 text-secondary">
             •
         </span>
@@ -145,21 +158,6 @@
             id="reminderStatus"
             class="d-flex align-items-center gap-2 text-primary"
         >
-
-        </div>
-
-        <div
-            id="locationMetaWrap"
-            class="d-flex align-items-center gap-2 d-none"
-        >
-
-            <span class="mx-1 text-secondary">
-                •
-            </span>
-
-            <i class="bi bi-geo-alt"></i>
-
-            <span id="noteLocation"></span>
 
         </div>
 
@@ -249,23 +247,41 @@
 
 <div id="editorToolbar" class="editor-toolbar">
 
-    <button data-command="bold">
+    <button data-command="bold" title="Bold">
         <i class="bi bi-type-bold"></i>
     </button>
 
-    <button data-command="italic">
+    <button data-command="italic" title="Italic">
         <i class="bi bi-type-italic"></i>
     </button>
 
-    <button data-command="underline">
+    <button data-command="underline" title="Underline">
         <i class="bi bi-type-underline"></i>
     </button>
 
-    <button data-heading="heading1">H1</button>
-    <button data-heading="heading2">H2</button>
-    <button data-heading="heading3">H3</button>
+    <button data-command="strikethrough" title="Strikethrough">
+        <i class="bi bi-type-strikethrough"></i>
+    </button>
 
-    <button id="toolbarAttachBtn" class="media-upload-btn" title="Add attachment">
+    <div class="toolbar-divider"></div>
+
+    <button data-command="fontSize" data-dropdown title="Ukuran teks">
+        <i class="bi bi-text-paragraph"></i>
+    </button>
+
+    <button data-command="fontFamily" data-dropdown title="Font">
+        <i class="bi bi-fonts"></i>
+    </button>
+
+    <div class="toolbar-divider"></div>
+
+    <button data-heading="heading1" title="Heading 1">H1</button>
+    <button data-heading="heading2" title="Heading 2">H2</button>
+    <button data-heading="heading3" title="Heading 3">H3</button>
+
+    <div class="toolbar-divider"></div>
+
+    <button id="toolbarAttachBtn" title="Lampiran">
         <i class="bi bi-paperclip"></i>
     </button>
 

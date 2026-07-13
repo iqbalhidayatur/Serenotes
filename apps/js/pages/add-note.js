@@ -17,6 +17,7 @@ import {
     createNote,
     getNoteById,
     getNotesByFolder,
+    getAllNotes,
     mergeNote,
     updateNote
 } from "../services/noteService.js";
@@ -413,37 +414,102 @@ function renderFolderPicker() {
         });
     });
 
-    // Daftar subfolder di level ini
+    // ── Subfolder di level ini ────────────────────────────
     const children = getChildFolders(
-    currentLocation.parentId,
-    currentLocation.parentType
-)
+        currentLocation.parentId,
+        currentLocation.parentType
+    );
 
-    folderPickerList.innerHTML = children.length
-        ? children.map(folder => `
+    // ── Notes di level ini ───────────────────────────────
+    const notes = currentLocation.parentId
+        ? getNotesByFolder(currentLocation.parentId)
+        : getAllNotes().filter(n => !n.folderId && !n.parentId);
+
+    // Bangun HTML
+    let html = "";
+
+    if (children.length) {
+        html += children.map(folder => `
             <button
                 type="button"
                 class="folder-picker-item"
                 data-id="${folder.id}"
+                data-kind="folder"
             >
                 <i class="${folder.icon || "bi bi-folder"}" style="color:${folder.color || "#4F46E5"}"></i>
                 <span>${folder.name}</span>
                 <i class="bi bi-chevron-right ms-auto"></i>
             </button>
-        `).join("")
-        : `<div class="text-muted small py-2">No subfolders here.</div>`;
+        `).join("");
+    }
 
-    folderPickerList.querySelectorAll("[data-id]").forEach(item => {
+    if (notes.length) {
+        if (children.length) {
+            html += `<div class="fp-section-label">Notes</div>`;
+        }
+        html += notes.map(note => {
+            const title = note.noteName || note.title || "Untitled";
+            const date  = note.date
+                ? new Date(note.date).toLocaleDateString("id-ID", { day:"numeric", month:"short" })
+                : "";
+            return `
+                <button
+                    type="button"
+                    class="folder-picker-item fp-note-item"
+                    data-id="${note.id}"
+                    data-kind="note"
+                >
+                    <i class="bi bi-file-earmark-text" style="color:#6b7280"></i>
+                    <span class="fp-note-name">${title}</span>
+                    <span class="fp-note-date ms-auto">${date}</span>
+                </button>
+            `;
+        }).join("");
+    }
+
+    if (!children.length && !notes.length) {
+        html = `<div class="text-muted small py-2 px-1">Folder ini kosong.</div>`;
+    }
+
+    folderPickerList.innerHTML = html;
+
+    // ── Event: folder → navigasi masuk ──────────────────
+    folderPickerList.querySelectorAll("[data-kind='folder']").forEach(item => {
         item.addEventListener("click", () => {
             const folder = getFolderById(item.dataset.id);
             if (!folder) return;
-
-            currentLocation = {
-                parentId: folder.id,
-                parentType: "folder"
-            };
-
+            currentLocation = { parentId: folder.id, parentType: "folder" };
             renderFolderPicker();
+        });
+    });
+
+    // ── Event: note → pilih note ini langsung ───────────
+    folderPickerList.querySelectorAll("[data-kind='note']").forEach(item => {
+        item.addEventListener("click", () => {
+            const note = getNoteById(item.dataset.id);
+            if (!note) return;
+
+            selectedFolderId = note.folderId || null;
+
+            updateFolderPickerLabel();
+
+            if (selectedFolderId) {
+                // Note dalam folder — populate dropdown lalu pilih note ini
+                refreshNoteNameUI();
+                requestAnimationFrame(() => {
+                    noteSelect.value = note.id;
+                });
+            } else {
+                // Note tanpa folder — inject langsung ke noteSelect sebagai satu-satunya opsi
+                noteSelect.innerHTML = `<option value="${note.id}">${note.noteName || note.title || "Untitled"}</option>`;
+                noteSelect.value = note.id;
+                noteNameInput.classList.add("d-none");
+                noteSelect.classList.remove("d-none");
+                btnNewNote.classList.remove("d-none");
+                btnCancelNewNote.classList.add("d-none");
+            }
+
+            folderPickerModal.hide();
         });
     });
 

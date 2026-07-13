@@ -1,5 +1,13 @@
 const STORAGE_KEY = "serenotes_notes";
 
+// ── Sync hook (opsional — hanya aktif kalau user login Google) ──
+function notifyDirty() {
+    try {
+        // Dynamic import agar tidak error kalau syncService belum ada
+        import("./syncService.js").then(m => m.markDirty()).catch(() => {});
+    } catch (_) {}
+}
+
 /**
  * Mengambil semua notes.
  */
@@ -111,6 +119,8 @@ function saveNotes(notes) {
         STORAGE_KEY,
         JSON.stringify(notes)
     );
+
+    notifyDirty();
 
 }
 

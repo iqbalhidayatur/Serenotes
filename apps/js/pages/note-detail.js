@@ -51,6 +51,18 @@ const params = new URLSearchParams(window.location.search);
 
 const noteId = params.get("id");
 
+if (!noteId) {
+    document.querySelector("main").innerHTML = `
+        <div class="text-center py-5">
+            <i class="bi bi-journal-x" style="font-size:4rem;color:#9ca3af;"></i>
+            <h3 class="mt-3">ID Note tidak ditemukan</h3>
+            <p class="text-muted">URL tidak mengandung parameter id.</p>
+            <a href="dashboard.html" class="btn btn-primary mt-3">Kembali ke Dashboard</a>
+        </div>
+    `;
+    throw new Error("No note ID in URL");
+}
+
 const note = getNoteById(noteId);
 
 if (note) {
@@ -104,23 +116,14 @@ if (!note) {
 
     document.querySelector("main").innerHTML = `
         <div class="text-center py-5">
-
-            <i
-                class="bi bi-journal-x"
-                style="
-                    font-size:4rem;
-                    color:#9ca3af;
-                "
-            ></i>
-
-            <h3 class="mt-3">
-                Note not found
-            </h3>
-
+            <i class="bi bi-journal-x" style="font-size:4rem;color:#9ca3af;"></i>
+            <h3 class="mt-3">Note tidak ditemukan</h3>
+            <p class="text-muted small">ID: ${noteId}</p>
+            <a href="dashboard.html" class="btn btn-primary mt-3">Kembali ke Dashboard</a>
         </div>
     `;
 
-    throw new Error("Note not found");
+    throw new Error("Note not found: " + noteId);
 
 }
 
@@ -1408,31 +1411,28 @@ function showToolbar() {
     toolbar.classList.add("show");
     updateToolbarState();
 
-    const rect          = range.getBoundingClientRect();
-    const toolbarWidth  = toolbar.offsetWidth;
-    const toolbarHeight = toolbar.offsetHeight;
-    const margin        = 12;
-    const vw            = window.innerWidth;
-    const vh            = window.innerHeight;
+}
 
-    // Posisi horizontal — tengah selection, tapi jangan keluar layar
-    let left = rect.left + (rect.width / 2) - (toolbarWidth / 2);
-    left = Math.max(margin, Math.min(left, vw - toolbarWidth - margin));
+// ── Toolbar tracks keyboard via visualViewport ───────────
+(function initToolbarKeyboardTracking() {
+    const vv = window.visualViewport;
+    if (!vv) return;
 
-    // SESUDAH
-    // Posisi vertikal — selalu di bawah selection, fallback ke atas jika tidak muat
-    let top = rect.bottom + 10;
-    if (top + toolbarHeight > vh - margin) {
-        top = rect.top - toolbarHeight - 10;
+    function updateToolbarBottom() {
+        // Jarak antara bawah visualViewport dan bawah layout viewport
+        // = tinggi keyboard (kira-kira)
+        const keyboardHeight = Math.max(
+            0,
+            window.innerHeight - (vv.height + vv.offsetTop)
+        );
+        toolbar.style.bottom = keyboardHeight > 10
+            ? `${keyboardHeight}px`
+            : "0px";
     }
 
-    // Pastikan tidak keluar atas layar
-    if (top < margin) top = margin;
-
-    toolbar.style.left = `${left}px`;
-    toolbar.style.top  = `${top}px`;
-
-}
+    vv.addEventListener("resize", updateToolbarBottom);
+    vv.addEventListener("scroll", updateToolbarBottom);
+})();
 
 toolbar.addEventListener("mousedown",(e)=>{
 
@@ -1468,6 +1468,24 @@ toolbar.addEventListener("click",(e)=>{
                 toggleInlineStyle("u");
 
                 break;
+
+            case "strikethrough":
+
+                toggleInlineStyle("s");
+
+                break;
+
+            case "fontSize":
+
+                button.classList.toggle("active");
+                openFontSizeDropdown(button);
+                return;
+
+            case "fontFamily":
+
+                button.classList.toggle("active");
+                openFontFamilyDropdown(button);
+                return;
 
         }
 
@@ -1601,12 +1619,239 @@ function getTagForCommand(command){
         case "underline":
             return "u";
 
+        case "strikethrough":
+            return "s";
+
         default:
             return null;
 
     }
 
 }
+
+// ── Apply span-based inline style (font size / font family) ──
+function applyInlineSpanStyle(prop, value) {
+
+    const range = getEditorSelectionRange() || savedSelectionRange;
+    if (!range || range.collapsed) return;
+
+    const selection = window.getSelection();
+
+    // Cek apakah selection sudah punya span dengan prop yang sama
+    // Kalau iya, hapus dulu supaya toggle / replace bersih
+    const ancestor = range.commonAncestorContainer;
+    const el = ancestor.nodeType === Node.ELEMENT_NODE
+        ? ancestor : ancestor.parentElement;
+    const existingSpan = el?.closest(`span[data-style-${prop}]`);
+    if (existingSpan && existingSpan.style[prop] === value) {
+        // Toggle off — unwrap span ini
+        const parent = existingSpan.parentNode;
+        while (existingSpan.firstChild) {
+            parent.insertBefore(existingSpan.firstChild, existingSpan);
+        }
+        parent.removeChild(existingSpan);
+        autoSave();
+        return;
+    }
+
+    const span = document.createElement("span");
+    span.style[prop] = value;
+    span.dataset[`style${prop.charAt(0).toUpperCase() + prop.slice(1)}`] = value;
+
+    const contents = range.extractContents();
+    span.appendChild(contents);
+    range.insertNode(span);
+
+    const newRange = document.createRange();
+    newRange.selectNodeContents(span);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+    savedSelectionRange = newRange.cloneRange();
+
+    autoSave();
+    updateToolbarState();
+}
+
+// ── Toolbar dropdown: font size ───────────────────────────
+function openFontSizeDropdown(anchorBtn) {
+    closeToolbarDropdowns();
+
+    const presets = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72];
+
+    const dd = document.createElement("div");
+    dd.className = "toolbar-dropdown font-size-dropdown";
+    dd.id = "toolbarDropdown";
+
+    // ── Input manual ──────────────────────────────────────
+    const inputRow = document.createElement("div");
+    inputRow.className = "fs-input-row";
+
+    const input = document.createElement("input");
+    input.type        = "number";
+    input.min         = "1";
+    input.max         = "200";
+    input.placeholder = "px";
+    input.className   = "fs-input";
+
+    // Cek font size aktif di selection saat ini
+    const range = getEditorSelectionRange() || savedSelectionRange;
+    if (range) {
+        const el = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+            ? range.commonAncestorContainer.parentElement
+            : range.commonAncestorContainer;
+        const current = el?.closest("[data-style-font-size]")?.style.fontSize;
+        if (current) input.value = parseInt(current);
+    }
+
+    const applyBtn = document.createElement("button");
+    applyBtn.className   = "fs-apply-btn";
+    applyBtn.textContent = "OK";
+    applyBtn.addEventListener("mousedown", e => {
+        e.preventDefault();
+        const val = parseInt(input.value);
+        if (val > 0 && val <= 200) {
+            applyInlineSpanStyle("fontSize", `${val}px`);
+        }
+        closeToolbarDropdowns();
+        anchorBtn.classList.remove("active");
+    });
+
+    input.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            applyBtn.dispatchEvent(new MouseEvent("mousedown"));
+        }
+        if (e.key === "Escape") {
+            closeToolbarDropdowns();
+        }
+    });
+
+    inputRow.appendChild(input);
+    inputRow.appendChild(applyBtn);
+    dd.appendChild(inputRow);
+
+    // ── Divider ───────────────────────────────────────────
+    const divider = document.createElement("div");
+    divider.className = "fs-divider";
+    dd.appendChild(divider);
+
+    // ── Preset list ───────────────────────────────────────
+    const list = document.createElement("div");
+    list.className = "fs-list";
+
+    presets.forEach(size => {
+        const btn = document.createElement("button");
+        btn.innerHTML = `<span style="font-size:${size}px;line-height:1.3">${size}</span><span class="fs-unit">px</span>`;
+        btn.addEventListener("mousedown", e => {
+            e.preventDefault();
+            applyInlineSpanStyle("fontSize", `${size}px`);
+            closeToolbarDropdowns();
+            anchorBtn.classList.remove("active");
+        });
+        list.appendChild(btn);
+    });
+
+    dd.appendChild(list);
+    document.body.appendChild(dd);
+    positionDropdownAboveBtn(dd, anchorBtn);
+
+    // Fokus input setelah posisi dihitung
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        input.focus();
+        input.select();
+    }));
+}
+
+// ── Toolbar dropdown: font family ─────────────────────────
+function openFontFamilyDropdown(anchorBtn) {
+    closeToolbarDropdowns();
+
+    const fonts = [
+        { label: "Default",    value: "" },
+        { label: "Poppins",    value: "'Poppins', sans-serif" },
+        { label: "Serif",      value: "Georgia, serif" },
+        { label: "Mono",       value: "'Courier New', monospace" },
+        { label: "Rounded",    value: "'Nunito', sans-serif" },
+    ];
+
+    const dd = buildToolbarDropdown(
+        fonts.map(f => ({
+            label: `<span style="font-family:${f.value || "inherit"}">${f.label}</span>`,
+            value: f.value,
+            action: () => {
+                if (f.value) applyInlineSpanStyle("fontFamily", f.value);
+            }
+        })),
+        anchorBtn
+    );
+
+    document.body.appendChild(dd);
+    positionDropdownAboveBtn(dd, anchorBtn);
+}
+
+function buildToolbarDropdown(items, anchorBtn) {
+    const dd = document.createElement("div");
+    dd.className = "toolbar-dropdown";
+    dd.id = "toolbarDropdown";
+
+    items.forEach(item => {
+        const btn = document.createElement("button");
+        btn.innerHTML = item.label;
+        btn.addEventListener("mousedown", e => {
+            e.preventDefault();
+            item.action();
+            closeToolbarDropdowns();
+            anchorBtn.classList.remove("active");
+        });
+        dd.appendChild(btn);
+    });
+
+    return dd;
+}
+
+function positionDropdownAboveBtn(dd, anchorBtn) {
+    // Posisi sementara agar bisa ukur tinggi
+    dd.style.visibility = "hidden";
+    dd.style.position   = "fixed";
+    dd.style.left       = "0";
+    dd.style.top        = "0";
+    document.body.appendChild(dd);
+
+    requestAnimationFrame(() => {
+        const btnRect  = anchorBtn.getBoundingClientRect();
+        const tbRect   = toolbar.getBoundingClientRect();
+        const ddHeight = dd.offsetHeight;
+        const ddWidth  = dd.offsetWidth;
+        const margin   = 8;
+
+        let top  = tbRect.top - ddHeight - margin;
+        let left = btnRect.left;
+
+        // Jangan keluar sisi kanan layar
+        if (left + ddWidth > window.innerWidth - margin) {
+            left = window.innerWidth - ddWidth - margin;
+        }
+        if (left < margin) left = margin;
+        if (top < margin) top = margin;
+
+        dd.style.top        = `${top}px`;
+        dd.style.left       = `${left}px`;
+        dd.style.visibility = "visible";
+    });
+}
+
+function closeToolbarDropdowns() {
+    document.getElementById("toolbarDropdown")?.remove();
+}
+
+// Tutup dropdown saat klik di luar
+document.addEventListener("mousedown", e => {
+    const dd = document.getElementById("toolbarDropdown");
+    if (dd && !dd.contains(e.target) &&
+        !e.target.closest("[data-dropdown]")) {
+        closeToolbarDropdowns();
+    }
+});
 
 function autoSave() {
 

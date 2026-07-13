@@ -229,12 +229,21 @@ export function getAllFolders(){
 
 }
 
+// ── Sync hook ────────────────────────────────────────────
+function notifyDirty() {
+    try {
+        import("./syncService.js").then(m => m.markDirty()).catch(() => {});
+    } catch (_) {}
+}
+
 export function saveFolders(folders){
 
     localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify(folders)
     );
+
+    notifyDirty();
 
 }
 

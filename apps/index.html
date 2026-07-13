@@ -3,11 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <script>
-        // Redirect ke dashboard jika sudah punya nama, kalau belum ke welcome
-        if (localStorage.getItem("serenotes_user")) {
+        // Cek apakah sudah login (ada token + user)
+        const token  = localStorage.getItem("sn_access_token");
+        const expiry = parseInt(localStorage.getItem("sn_token_expiry") || "0");
+        const user   = localStorage.getItem("sn_user");
+        const valid  = token && user && Date.now() < expiry - 60000;
+
+        if (valid) {
             window.location.replace("dashboard.html");
         } else {
-            window.location.replace("welcome.html");
+            window.location.replace("login.html");
         }
     </script>
 </head>

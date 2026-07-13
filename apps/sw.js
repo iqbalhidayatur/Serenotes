@@ -55,17 +55,27 @@ self.addEventListener("fetch", (event) => {
     if (!event.request.url.startsWith(self.location.origin)) return;
 
     event.respondWith(
-        caches.match(event.request).then((cached) => {
+        // ignoreSearch: true → cache match tanpa peduli query string
+        caches.match(event.request, { ignoreSearch: true }).then((cached) => {
             if (cached) return cached;
             return fetch(event.request).then((response) => {
                 if (response && response.status === 200) {
                     const clone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                    // Simpan ke cache tanpa query string
+                    const cacheUrl = new URL(event.request.url);
+                    cacheUrl.search = "";
+                    caches.open(CACHE_NAME).then((cache) =>
+                        cache.put(new Request(cacheUrl.toString()), clone)
+                    );
                 }
                 return response;
             }).catch(() => {
                 if (event.request.mode === "navigate") {
-                    return caches.match("./dashboard.html");
+                    // Coba return halaman yang diminta dari cache dulu
+                    const url = new URL(event.request.url);
+                    url.search = "";
+                    return caches.match(url.toString()) ||
+                           caches.match("./dashboard.html");
                 }
             });
         })

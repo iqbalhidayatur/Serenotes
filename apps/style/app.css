@@ -124,7 +124,7 @@ header {
     border: none;
     border-bottom: 1px solid var(--border-light);
     outline: none;
-    padding: 10px 10px;
+    padding: 10px 20px;
     height: 70px;
 }
 
@@ -943,25 +943,35 @@ header .btn-link:hover{
 
 .editor-toolbar {
     position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 1000;
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 6px 8px;
+    border-top: 1px solid var(--border);
+    padding: 8px 12px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
     display: flex;
-    gap: 4px;
+    gap: 2px;
     align-items: center;
-    box-shadow: 0 4px 16px var(--shadow);
+    box-shadow: 0 -2px 12px var(--shadow);
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.15s;
-    max-width: calc(100vw - 24px);
-    flex-wrap: wrap;
+    transform: translateY(100%);
+    transition: opacity 0.18s, transform 0.18s, bottom 0.0s;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.editor-toolbar::-webkit-scrollbar {
+    display: none;
 }
 
 .editor-toolbar.show {
     visibility: visible;
     opacity: 1;
+    transform: translateY(0);
 }
 
 .editor-toolbar button{
@@ -970,13 +980,19 @@ header .btn-link:hover{
 
     cursor:pointer;
 
-    padding:6px 10px;
+    padding:8px 12px;
 
     border-radius:8px;
 
     color: var(--text-main);
 
     background-color: transparent;
+
+    flex-shrink: 0;
+
+    font-size: 16px;
+
+    line-height: 1;
 
 }
 
@@ -992,6 +1008,145 @@ header .btn-link:hover{
 
     color:#fff;
 
+}
+
+.editor-toolbar .toolbar-divider {
+    width: 1px;
+    height: 22px;
+    background: var(--border);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+/* ── Toolbar dropdown (font size / family) ──────────── */
+.toolbar-dropdown {
+    position: fixed;
+    z-index: 1100;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 100px;
+    max-height: 260px;
+    overflow-y: auto;
+    animation: dropdownIn 0.15s ease;
+}
+
+@keyframes dropdownIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.toolbar-dropdown button {
+    all: unset;
+    display: block;
+    width: 100%;
+    padding: 9px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-main);
+    transition: background 0.12s;
+    box-sizing: border-box;
+    line-height: 1.4;
+}
+
+.toolbar-dropdown button:hover {
+    background: var(--bg-secondary);
+}
+
+.toolbar-dropdown button.active {
+    background: var(--primary);
+    color: #fff;
+}
+
+/* ── Font size dropdown overrides ───────────────────── */
+.font-size-dropdown {
+    padding: 8px;
+    min-width: 160px;
+    max-height: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.fs-input-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 2px 2px 6px;
+}
+
+.fs-input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-main);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.fs-input::-webkit-inner-spin-button,
+.fs-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+}
+
+.fs-input:focus {
+    border-color: var(--primary);
+}
+
+.fs-apply-btn {
+    all: unset;
+    padding: 7px 12px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s;
+}
+
+.fs-apply-btn:hover {
+    background: var(--primary-hover, #4338ca);
+}
+
+.fs-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 -2px 6px;
+}
+
+.fs-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.fs-list button {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 10px;
+    justify-content: space-between;
+}
+
+.fs-unit {
+    font-size: 11px;
+    color: var(--text-secondary, #9ca3af);
+    flex-shrink: 0;
 }
 
 .slash-menu{
@@ -4608,7 +4763,7 @@ mark{
 /* ── Folder Picker (Add Note) ─────────────────────────── */
 
 .folder-picker-list {
-    max-height: 260px;
+    max-height: 380px;
     overflow-y: auto;
 }
 
@@ -4634,6 +4789,39 @@ mark{
 
 .folder-picker-item i:first-child {
     font-size: 1.1rem;
+}
+
+.fp-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    padding: 8px 4px 4px;
+}
+
+.fp-note-item {
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.fp-note-item:hover {
+    background: var(--bg-secondary);
+    color: var(--text-main);
+}
+
+.fp-note-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60%;
+}
+
+.fp-note-date {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* ── Folder Explorer (category.html) ──────────────────── */

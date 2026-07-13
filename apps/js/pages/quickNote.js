@@ -1,8 +1,8 @@
-import { createNote } from "../services/noteService.js";
+import { createNote, getNoteById } from "../services/noteService.js";
 
-const btn     = document.getElementById("btnAddNote");
-const overlay = document.getElementById("quickNoteOverlay");
-const popup   = document.getElementById("quickNotePopup");
+const btn      = document.getElementById("btnAddNote");
+const overlay  = document.getElementById("quickNoteOverlay");
+const popup    = document.getElementById("quickNotePopup");
 const btnEmpty = document.getElementById("btnQuickEmpty");
 const btnForm  = document.getElementById("btnQuickForm");
 
@@ -37,6 +37,13 @@ btnEmpty?.addEventListener("click", () => {
         noteName: "",
         blocks: [{ id: crypto.randomUUID(), type: "paragraph", text: "" }]
     });
+
+    // Verifikasi note benar-benar tersimpan sebelum redirect
+    const saved = getNoteById(note.id);
+    if (!saved) {
+        alert("Gagal membuat note. Coba lagi.");
+        return;
+    }
 
     window.location.href = `note-detail.html?id=${note.id}`;
 });
