@@ -92,11 +92,40 @@
                     <small>Export all notes as JSON</small>
                 </div>
             </button>
+            <button id="syncNowBtn" class="settings-item w-100">
+                <div class="settings-icon"><i class="bi bi-arrow-repeat"></i></div>
+                <div class="settings-content">
+                    <h5>Sync ke Google Drive</h5>
+                    <small id="lastSyncLabel">Belum pernah sync</small>
+                </div>
+            </button>
             <button id="clearDataBtn" class="settings-item w-100 text-danger">
                 <div class="settings-icon text-danger"><i class="bi bi-trash3"></i></div>
                 <div class="settings-content">
                     <h5 class="text-danger">Clear Data</h5>
                     <small>Delete all notes permanently</small>
+                </div>
+            </button>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <h6 class="settings-title">AKUN</h6>
+        <div class="settings-group">
+            <div class="settings-item">
+                <div class="settings-icon"><i class="bi bi-person-circle"></i></div>
+                <div class="settings-content">
+                    <h5 id="accountName">-</h5>
+                    <small id="accountEmail">-</small>
+                </div>
+            </div>
+            <button id="logoutBtn" class="settings-item w-100">
+                <div class="settings-icon" style="background:var(--danger-light)">
+                    <i class="bi bi-box-arrow-right" style="color:var(--danger)"></i>
+                </div>
+                <div class="settings-content">
+                    <h5 class="text-danger">Logout</h5>
+                    <small>Keluar dari akun Google</small>
                 </div>
             </button>
         </div>
@@ -128,7 +157,7 @@
             <i class="bi bi-grid-fill"></i>
         </a>
 
-        <a class="nav-item add-note" id="btnAddNote">
+        <a href="add-note.html" class="nav-item add-note">
             <i class="bi bi-plus-circle-fill"></i>
         </a>
 
@@ -144,29 +173,5 @@
 <script type="module" src="js/pages/settings.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 
-
-    <!-- ── Quick Note Popup ──────────────────────────── -->
-    <div class="overlay" id="quickNoteOverlay"></div>
-    <div class="quick-note-popup" id="quickNotePopup">
-        <div class="quick-note-handle"></div>
-        <p class="quick-note-label">Buat Catatan</p>
-        <div class="quick-note-options">
-            <button class="quick-note-option" id="btnQuickEmpty">
-                <span class="quick-note-icon"><i class="bi bi-file-earmark-plus"></i></span>
-                <span class="quick-note-text">
-                    <strong>Note Kosong</strong>
-                    <small>Langsung tulis tanpa isi form</small>
-                </span>
-            </button>
-            <button class="quick-note-option" id="btnQuickForm">
-                <span class="quick-note-icon"><i class="bi bi-ui-checks-grid"></i></span>
-                <span class="quick-note-text">
-                    <strong>Gunakan Form</strong>
-                    <small>Isi judul, kategori, dan detail</small>
-                </span>
-            </button>
-        </div>
-    </div>
-    <script type="module" src="js/pages/quickNote.js"></script>
 </body>
 </html>

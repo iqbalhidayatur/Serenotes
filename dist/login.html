@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <script>
+        const t = localStorage.getItem("serenotes_theme") || "light";
+        document.documentElement.setAttribute("data-theme", t);
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serenotes — Login</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Google API client (untuk Drive) -->
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Serenotes">
+    <link rel="apple-touch-icon" href="/assets/icon-192-6w8mqElR.png">
+    <link rel="icon" type="image/png" href="/assets/icon-192-6w8mqElR.png">
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 32px;
+        }
+
+        /* Logo + nama app */
+        .login-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .login-logo {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #fff;
+        }
+
+        .login-brand h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+        }
+
+        .login-brand p {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* Tombol Google */
+        .btn-google {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 14px 20px;
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            background: var(--bg-card);
+            color: var(--text-main);
+            font-family: 'Poppins', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, transform 0.1s;
+            text-decoration: none;
+        }
+
+        .btn-google:hover {
+            background: var(--bg-secondary);
+            border-color: var(--primary);
+        }
+
+        .btn-google:active {
+            transform: scale(0.97);
+        }
+
+        .btn-google svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Loading state */
+        .btn-google.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .btn-google.loading .btn-google-text::after {
+            content: '...';
+            animation: dots 1s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40%      { content: '..'; }
+            60%      { content: '...'; }
+        }
+
+        /* Error message */
+        .login-error {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: var(--danger-light);
+            color: var(--danger);
+            font-size: 13px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .login-error.show {
+            display: flex;
+        }
+
+        /* Footer note */
+        .login-footer {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.6;
+        }
+    </style>
+  <script type="module" crossorigin src="/assets/login-Dhwp3_sZ.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-CWvZBRxe.js">
+  <link rel="modulepreload" crossorigin href="/assets/mediaService-BqUZfek5.js">
+  <link rel="modulepreload" crossorigin href="/assets/syncService-Dm3gZBRc.js">
+  <link rel="stylesheet" crossorigin href="/assets/preload-helper-vtb1SolZ.css">
+</head>
+<body>
+
+    <div class="login-card">
+
+        <div class="login-brand">
+            <div class="login-logo">
+                <i class="bi bi-journal-text"></i>
+            </div>
+            <h1>Serenotes</h1>
+            <p>Catatan kamu tersimpan aman<br>di Google Drive kamu sendiri.</p>
+        </div>
+
+        <div style="width:100%; display:flex; flex-direction:column; gap:12px;">
+            <button class="btn-google" id="btnGoogleLogin">
+                <!-- Google icon SVG -->
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span class="btn-google-text">Masuk dengan Google</span>
+            </button>
+
+            <div class="login-error" id="loginError">
+                <i class="bi bi-exclamation-circle-fill"></i>
+                <span id="loginErrorMsg">Terjadi kesalahan. Coba lagi.</span>
+            </div>
+        </div>
+
+        <p class="login-footer">
+            Data kamu disimpan di Google Drive milikmu.<br>
+            Kami tidak menyimpan data apapun di server.
+        </p>
+
+    </div>
+
+
+</body>
+</html>

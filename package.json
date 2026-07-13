@@ -1,22 +1,23 @@
 {
   "name": "serenotes",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "@capacitor-firebase/authentication": "^8.3.0",
     "@capacitor/android": "^8.4.1",
+    "@capacitor/app": "^8.0.2",
+    "@capacitor/browser": "^8.0.2",
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
     "@capacitor/ios": "^8.4.1",
     "@capacitor/local-notifications": "^8.2.0",
-    "firebase": "^12.16.0"
+    "@capawesome/capacitor-google-sign-in": "^0.1.2"
+  },
+  "devDependencies": {
+    "vite": "^7.x.x"
   }
 }

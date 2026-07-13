@@ -124,7 +124,7 @@ header {
     border: none;
     border-bottom: 1px solid var(--border-light);
     outline: none;
-    padding: 10px 20px;
+    padding: 10px 10px;
     height: 70px;
 }
 
@@ -1705,6 +1705,16 @@ body.read-mode .media-carousel-del {
 /* Hide delete + layout switcher in read mode */
 body.read-mode .media-layout-toolbar {
     display: none !important;
+}
+
+/* Sync spin animation */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+.spin {
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
 }
 
 body.read-mode .media-carousel {

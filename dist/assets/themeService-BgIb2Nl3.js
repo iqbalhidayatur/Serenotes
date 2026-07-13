@@ -1,0 +1,1 @@
+const e="serenotes_theme";function n(){return localStorage.getItem(e)||"light"}function o(t){document.documentElement.setAttribute("data-theme",t),localStorage.setItem(e,t)}function a(){o(n())}function c(){const t=n()==="dark"?"light":"dark";o(t)}export{n as g,a as i,c as t};

@@ -1,9 +1,15 @@
 // ══════════════════════════════════════════════════════════
 // login.js — halaman login Serenotes
 // ══════════════════════════════════════════════════════════
-
-import { initAuth, requestToken, fetchUserInfo, isLoggedIn } from "../services/authService.js";
 import { pullOnLogin } from "../services/syncService.js";
+
+import {
+    initAuth,
+    requestToken,
+    getUser,
+    isLoggedIn
+}
+from "../services/authService.js";
 
 const btnLogin   = document.getElementById("btnGoogleLogin");
 const errorBox   = document.getElementById("loginError");
@@ -26,10 +32,13 @@ btnLogin.addEventListener("click", async () => {
 
     try {
         // 1. Minta access token (tampil popup Google)
-        const accessToken = await requestToken();
+        await requestToken();
 
-        // 2. Ambil info user (nama, email, foto)
-        const user = await fetchUserInfo(accessToken);
+        const user = getUser();
+
+        if (!user) {
+            throw new Error("User tidak ditemukan.");
+        }
 
         // Simpan nama user supaya kompatibel dengan sistem lama
         localStorage.setItem("serenotes_user", user.name);
@@ -41,17 +50,8 @@ btnLogin.addEventListener("click", async () => {
         // 4. Redirect ke dashboard
         window.location.replace("dashboard.html");
 
-    } catch (err) {
-        console.error("Login error:", err);
+    } finally {
         setLoading(false);
-
-        if (err.message?.includes("popup_closed")) {
-            showError("Login dibatalkan. Silakan coba lagi.");
-        } else if (err.message?.includes("access_denied")) {
-            showError("Akses ditolak. Pastikan kamu mengizinkan akses Google Drive.");
-        } else {
-            showError("Gagal login. Periksa koneksi internet dan coba lagi.");
-        }
     }
 });
 

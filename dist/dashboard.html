@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script>
+        const t = localStorage.getItem("serenotes_theme") || "light";
+        document.documentElement.setAttribute("data-theme", t);
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Serenotes">
+    <link rel="manifest" href="/assets/manifest-BlLKieyn.json">
+    <link rel="apple-touch-icon" href="/assets/icon-192-6w8mqElR.png">
+    <link rel="icon" type="image/png" href="/assets/icon-192-6w8mqElR.png">
+  <script type="module" crossorigin src="/assets/dashboard-BUz37JKA.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-CWvZBRxe.js">
+  <link rel="modulepreload" crossorigin href="/assets/themeService-BgIb2Nl3.js">
+  <link rel="modulepreload" crossorigin href="/assets/noteService-BbxFfomM.js">
+  <link rel="modulepreload" crossorigin href="/assets/folderService-D-ma_eOi.js">
+  <link rel="modulepreload" crossorigin href="/assets/notificationService-DwiMN6DO.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickNote-CCxhJ69S.js">
+  <link rel="stylesheet" crossorigin href="/assets/preload-helper-vtb1SolZ.css">
+</head>
+<body>
+    
+    <header class="d-flex justify-content-between align-items-center">
+
+        <div class="d-flex align-items-center gap-3">
+
+            <div>
+                <h3 class="m-0">Home</h3>
+                <p id="headerGreeting" class="m-0 text-secondary" style="font-size:.82rem;line-height:1.4;"></p>
+            </div>
+
+        </div>
+
+        <a
+            href="search.html"
+            class="text-decoration-none"
+        >
+
+            <i class="bi bi-search fs-4"></i>
+
+        </a>
+
+    </header>
+
+    <main class="p-2">
+
+        <!-- Overlay -->
+        <div class="overlay" id="filterOverlay"></div>
+
+        <!-- Filter Popup -->
+        <div class="filter-popup" id="filterPopup">
+
+            <div class="filter-header">
+                <h5>Filter Notes</h5>
+                <button id="closeFilter">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div class="filter-body">
+
+                <div class="filter-group">
+                    <label>From Date</label>
+                    <input type="date" id="filterStartDate">
+                </div>
+
+                <div class="filter-group">
+                    <label>To Date</label>
+                    <input type="date" id="filterEndDate">
+                </div>
+
+                <div class="filter-group">
+                    <label>Folder</label>
+                    <select id="filterFolder">
+                        <option value="">All Folders</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Tag</label>
+                    <select id="filterTag">
+                        <option value="">All Tags</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="filter-footer">
+                <button class="btn-reset" id="resetFilter">
+                    Reset
+                </button>
+
+                <button class="btn-apply" id="applyFilter">
+                    Apply Filter
+                </button>
+            </div>
+
+        </div>
+
+        <div class="recent pt-3 d-flex flex-column justify-content-space-between align-items-center w-100">
+            
+            <div class="w-100 d-flex justify-content-start align-items-center">
+                <h1 class="w-100">Recent Notes</h1>
+            </div>
+            <div class="btn-container d-flex justify-content-end align-items-center w-100 gap-2">
+
+                <div class="filter">
+                    <button class="btn-filter" id="btnFilter">
+                        <i class="bi bi-filter"></i>
+                    </button>            
+                </div>
+
+            </div>
+        </div>
+
+        <div class="notes-card">
+
+            <div class="recent-slider" id="recentContainer"></div>
+
+            <div class="all-notes pt-4">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1>All Notes</h1>
+                </div>
+
+                <div id="notesContainer" class="p-2"></div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item active">
+            <i class="bi bi-house-fill"></i>
+        </a>
+
+        <a href="hub.html" class="nav-item">
+            <i class="bi bi-grid-fill"></i>
+        </a>
+
+        <a class="nav-item add-note" id="btnAddNote">
+            <i class="bi bi-plus-circle-fill"></i>
+        </a>
+
+        <a href="category.html" class="nav-item">
+            <i class="bi bi-list-ul"></i>
+        </a>
+        
+        <a href="settings.html" class="nav-item">
+            <i class="bi bi-gear-fill"></i>
+        </a>
+    </nav>
+
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js" integrity="sha384-G/EV+4j2dNv+tEPo3++6LCgdCROaejBqfUeNjuKAiuXbjrxilcCdDz6ZAVfHWe1Y" crossorigin="anonymous"></script>
+
+
+    <!-- ── Quick Note Popup ──────────────────────────── -->
+    <div class="overlay" id="quickNoteOverlay"></div>
+    <div class="quick-note-popup" id="quickNotePopup">
+        <div class="quick-note-handle"></div>
+        <p class="quick-note-label">Buat Catatan</p>
+        <div class="quick-note-options">
+            <button class="quick-note-option" id="btnQuickEmpty">
+                <span class="quick-note-icon"><i class="bi bi-file-earmark-plus"></i></span>
+                <span class="quick-note-text">
+                    <strong>Note Kosong</strong>
+                    <small>Langsung tulis tanpa isi form</small>
+                </span>
+            </button>
+            <button class="quick-note-option" id="btnQuickForm">
+                <span class="quick-note-icon"><i class="bi bi-ui-checks-grid"></i></span>
+                <span class="quick-note-text">
+                    <strong>Gunakan Form</strong>
+                    <small>Isi judul, kategori, dan detail</small>
+                </span>
+            </button>
+        </div>
+    </div>
+</body>
+</html>

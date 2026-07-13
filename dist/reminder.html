@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <script>
+        const t = localStorage.getItem("serenotes_theme") || "light";
+        document.documentElement.setAttribute("data-theme", t);
+    </script>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Reminder | Serenotes
+    </title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    >
+
+
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Serenotes">
+    <link rel="manifest" href="/assets/manifest-BlLKieyn.json">
+    <link rel="apple-touch-icon" href="/assets/icon-192-6w8mqElR.png">
+    <link rel="icon" type="image/png" href="/assets/icon-192-6w8mqElR.png">
+  <script type="module" crossorigin src="/assets/reminder-Ca52xH-T.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-CWvZBRxe.js">
+  <link rel="modulepreload" crossorigin href="/assets/themeService-BgIb2Nl3.js">
+  <link rel="modulepreload" crossorigin href="/assets/noteService-BbxFfomM.js">
+  <link rel="modulepreload" crossorigin href="/assets/quickNote-CCxhJ69S.js">
+  <link rel="stylesheet" crossorigin href="/assets/preload-helper-vtb1SolZ.css">
+</head>
+
+<body>
+
+<header class="">
+
+    <div class="container d-flex justify-content-between align-items-center">
+        
+        <div class="d-flex gap-2">
+            <button id="backBtn" class="header-btn" onclick="window.history.back()">
+                <i class="bi bi-arrow-left"></i>
+            </button>
+    
+            <div>
+    
+                <h3 class="mb-1">
+                    Reminders
+                </h3>
+    
+                <p class="text-secondary">
+                    Never miss anything.
+                </p>
+    
+            </div>
+        </div>
+
+        <button
+            id="todayBtn"
+            class="btn btn-light"
+        >
+
+            <i class="bi bi-calendar-day"></i>
+
+        </button>
+
+    </div>
+
+</header>
+
+<main class="container py-4">
+
+    <div
+        id="statsCard"
+        class="reminder-summary mb-4"
+    >
+
+        <div>
+
+            <h2 id="todayCount">
+
+                0
+
+            </h2>
+
+            <span>
+
+                Today
+
+            </span>
+
+        </div>
+
+        <div>
+
+            <h2 id="upcomingCount">
+
+                0
+
+            </h2>
+
+            <span>
+
+                Upcoming
+
+            </span>
+
+        </div>
+
+        <div>
+
+            <h2 id="completedCount">
+
+                0
+
+            </h2>
+
+            <span>
+
+                Completed
+
+            </span>
+
+        </div>
+
+    </div>
+
+    <section class="mb-5">
+
+        <h5 class="section-title">
+
+            Today
+
+        </h5>
+
+        <div id="todayList"></div>
+
+    </section>
+
+    <section class="mb-5">
+
+        <h5 class="section-title">
+
+            Upcoming
+
+        </h5>
+
+        <div id="upcomingList"></div>
+
+    </section>
+
+    <section class="mb-5">
+
+        <h5 class="section-title">
+
+            Completed
+
+        </h5>
+
+        <div id="completedList"></div>
+
+    </section>
+
+    <section>
+
+        <h5 class="section-title">
+
+            Overdue
+
+        </h5>
+
+        <div id="overdueList"></div>
+
+    </section>
+
+</main>
+
+<nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item">
+            <i class="bi bi-house-fill"></i>
+        </a>
+
+        <a href="hub.html" class="nav-item active">
+            <i class="bi bi-grid-fill"></i>
+        </a>
+
+        <a class="nav-item add-note" id="btnAddNote">
+            <i class="bi bi-plus-circle-fill"></i>
+        </a>
+
+        <a href="category.html" class="nav-item">
+            <i class="bi bi-list-ul"></i>
+        </a>
+        
+        <a href="settings.html" class="nav-item">
+            <i class="bi bi-gear-fill"></i>
+        </a>
+    </nav>
+
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+></script>
+
+
+    <!-- ── Quick Note Popup ──────────────────────────── -->
+    <div class="overlay" id="quickNoteOverlay"></div>
+    <div class="quick-note-popup" id="quickNotePopup">
+        <div class="quick-note-handle"></div>
+        <p class="quick-note-label">Buat Catatan</p>
+        <div class="quick-note-options">
+            <button class="quick-note-option" id="btnQuickEmpty">
+                <span class="quick-note-icon"><i class="bi bi-file-earmark-plus"></i></span>
+                <span class="quick-note-text">
+                    <strong>Empty Note</strong>
+                </span>
+            </button>
+            <button class="quick-note-option" id="btnQuickForm">
+                <span class="quick-note-icon"><i class="bi bi-ui-checks-grid"></i></span>
+                <span class="quick-note-text">
+                    <strong>Use Form</strong>
+                </span>
+            </button>
+        </div>
+    </div>
+</body>
+
+</html>

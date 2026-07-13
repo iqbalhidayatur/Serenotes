@@ -1,5 +1,5 @@
 {
   "appId": "com.serenitydev.serenotes",
   "appName": "Serenotes",
-  "webDir": "apps"
+  "webDir": "dist"
 }
