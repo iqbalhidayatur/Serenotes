@@ -17,6 +17,9 @@ const UPLOAD_API  = "https://www.googleapis.com/upload/drive/v3";
 const APP_FOLDER  = "Serenotes";
 const MEDIA_FOLDER = "media";
 
+const KEY_NOTES = "serenotes_notes";
+const KEY_FOLDERS = "serenotes_folders";
+
 // Cache ID folder supaya tidak fetch ulang terus
 let appFolderId   = null;
 let mediaFolderId = null;
@@ -54,91 +57,195 @@ async function drivePost(url, body, params = {}) {
 
 // ── Cari atau buat folder di Drive ───────────────────────
 async function findOrCreateFolder(name, parentId = null) {
-    const t = await token();
+    const cacheKey = parentId
+        ? `sn_folder_${parentId}_${name}`
+        : `sn_folder_root_${name}`;
 
-    // Cari dulu
-    let query = `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-    if (parentId) query += ` and '${parentId}' in parents`;
+    // cek cache
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+        return cached;
+    }
 
-    const search = await driveGet("/files", {
-        q: query,
-        fields: "files(id, name)",
+    let query = [
+        `name='${name}'`,
+        `mimeType='application/vnd.google-apps.folder'`,
+        `trashed=false`
+    ];
+
+    if (parentId) {
+        query.push(`'${parentId}' in parents`);
+    }
+
+    const result = await driveGet("/files", {
+        q: query.join(" and "),
+        fields: "files(id,name,createdTime)",
+        orderBy: "createdTime asc",
+        pageSize: 1,
         spaces: "drive"
     });
 
-    if (search.files.length > 0) {
-        return search.files[0].id;
+    if (result.files.length) {
+        const id = result.files[0].id;
+        sessionStorage.setItem(cacheKey, id);
+        return id;
     }
 
-    // Buat baru kalau belum ada
-    const body = {
+    const folder = await drivePost("/files", {
         name,
         mimeType: "application/vnd.google-apps.folder",
-        ...(parentId ? { parents: [parentId] } : {})
-    };
+        ...(parentId && {
+            parents: [parentId]
+        })
+    });
 
-    const folder = await drivePost("/files", body);
+    sessionStorage.setItem(cacheKey, folder.id);
+
     return folder.id;
 }
 
 // ── Pastikan folder Serenotes & media sudah ada ──────────
 async function ensureFolders() {
-    if (!appFolderId) {
-        appFolderId = await findOrCreateFolder(APP_FOLDER);
+
+    if (appFolderId && mediaFolderId) {
+        return;
     }
-    if (!mediaFolderId) {
-        mediaFolderId = await findOrCreateFolder(MEDIA_FOLDER, appFolderId);
-    }
+
+    appFolderId ??= await findOrCreateFolder(APP_FOLDER);
+
+    mediaFolderId ??= await findOrCreateFolder(
+        MEDIA_FOLDER,
+        appFolderId
+    );
+
 }
 
 // ── Cari file JSON di folder Serenotes ───────────────────
+const fileCache = new Map();
+
 async function findFile(filename) {
     await ensureFolders();
 
-    const res = await driveGet("/files", {
-        q: `name='${filename}' and '${appFolderId}' in parents and trashed=false`,
-        fields: "files(id, name, modifiedTime)",
+    if (fileCache.has(filename)) {
+        return fileCache.get(filename);
+    }
+
+    const cacheKey = `sn_file_${filename}`;
+    const cachedId = sessionStorage.getItem(cacheKey);
+
+    if (cachedId) {
+        const file = {
+            id: cachedId,
+            name: filename
+        };
+
+        fileCache.set(filename, file);
+        return file;
+    }
+
+    const result = await driveGet("/files", {
+        q: [
+            `name='${filename}'`,
+            `'${appFolderId}' in parents`,
+            `trashed=false`
+        ].join(" and "),
+        fields: "files(id,name,modifiedTime)",
+        orderBy: "modifiedTime desc",
+        pageSize: 1,
         spaces: "drive"
     });
 
-    return res.files.length > 0 ? res.files[0] : null;
+    if (!result.files.length) {
+        return null;
+    }
+
+    const file = result.files[0];
+
+    fileCache.set(filename, file);
+    sessionStorage.setItem(cacheKey, file.id);
+
+    return file;
+}
+
+const mediaCache = new Map();
+
+export async function findMediaFile(filename) {
+    await ensureFolders();
+
+    const res = await driveGet("/files", {
+        q: `name='${filename}' and '${mediaFolderId}' in parents and trashed=false`,
+        fields: "files(id,name,mimeType)"
+    });
+
+    return res.files[0] ?? null;
 }
 
 // ── Baca file JSON dari Drive ────────────────────────────
+const modifiedCache = new Map();
+
 export async function readJSON(filename) {
+
     const file = await findFile(filename);
+
     if (!file) return null;
 
-    const res = await fetch(`${DRIVE_API}/files/${file.id}?alt=media`, {
-        headers: { Authorization: `Bearer ${await token()}` }
-    });
+    const res = await fetch(
+        `${DRIVE_API}/files/${file.id}?alt=media`,
+        {
+            headers: {
+                Authorization: `Bearer ${await token()}`
+            }
+        }
+    );
+    console.log("readJSON", filename, file);
 
-    if (!res.ok) return null;
-    return res.json();
+    if (!res.ok) {
+        throw new Error(`Read ${filename} gagal (${res.status})`);
+    }
+
+    return await res.json();
+
 }
 
 // ── Tulis / update file JSON ke Drive ───────────────────
 export async function writeJSON(filename, data) {
+
     await ensureFolders();
 
-    const content  = JSON.stringify(data, null, 2);
-    const blob     = new Blob([content], { type: "application/json" });
-    const existing = await findFile(filename);
+    let file = await findFile(filename);
 
-    const t = await token();
+    const blob = new Blob(
+        [
+            JSON.stringify(data, null, 2)
+        ],
+        {
+            type: "application/json"
+        }
+    );
 
-    if (existing) {
-        // Update file yang sudah ada
-        const res = await fetch(`${UPLOAD_API}/files/${existing.id}?uploadType=media`, {
-            method: "PATCH",
-            headers: {
-                Authorization: `Bearer ${t}`,
-                "Content-Type": "application/json"
-            },
-            body: blob
-        });
-        if (!res.ok) throw new Error(`Gagal update ${filename}`);
-        return res.json();
+    const accessToken = await token();
+
+    if (file) {
+
+        const res = await fetch(
+            `${UPLOAD_API}/files/${file.id}?uploadType=media`,
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json"
+                },
+                body: blob
+            }
+        );
+
+        if (!res.ok) {
+            throw new Error("Update gagal.");
+        }
+
+        modifiedCache.delete(file.id);
+
+        return await res.json();
     } else {
         // Buat file baru dengan metadata
         const metadata = {
@@ -153,7 +260,9 @@ export async function writeJSON(filename, data) {
 
         const res = await fetch(`${UPLOAD_API}/files?uploadType=multipart`, {
             method: "POST",
-            headers: { Authorization: `Bearer ${t}` },
+            headers: {
+                Authorization: `Bearer ${accessToken}`
+            },
             body: form
         });
         if (!res.ok) throw new Error(`Gagal buat ${filename}`);
@@ -163,9 +272,18 @@ export async function writeJSON(filename, data) {
 
 // ── Upload media file (foto/video/audio) ke Drive ────────
 export async function uploadMedia(fileBlob, filename, mimeType) {
+
     await ensureFolders();
 
-    const t = await token();
+    const tokenValue = await token();
+
+    const existing = await findMediaFile(filename);
+
+    if (existing) {
+
+        return existing;
+
+    }
 
     const metadata = {
         name: filename,
@@ -174,35 +292,93 @@ export async function uploadMedia(fileBlob, filename, mimeType) {
     };
 
     const form = new FormData();
-    form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+
+    form.append(
+        "metadata",
+        new Blob(
+            [JSON.stringify(metadata)],
+            {
+                type: "application/json"
+            }
+        )
+    );
+
     form.append("file", fileBlob);
 
-    const res = await fetch(`${UPLOAD_API}/files?uploadType=multipart`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${t}` },
-        body: form
-    });
+    const res = await fetch(
+        `${UPLOAD_API}/files?uploadType=multipart`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${tokenValue}`
+            },
+            body: form
+        }
+    );
 
-    if (!res.ok) throw new Error("Gagal upload media");
-    return res.json();
+    if (!res.ok) {
+        throw new Error("Upload media gagal.");
+    }
+
+    const uploaded = await res.json();
+
+    mediaCache.set(filename, uploaded);
+
+    return uploaded;
 }
 
 // ── Download media file dari Drive ───────────────────────
 export async function downloadMedia(fileId) {
-    const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
-        headers: { Authorization: `Bearer ${await token()}` }
-    });
-    if (!res.ok) throw new Error("Gagal download media");
-    return res.blob();
+
+    const res = await fetch(
+        `${DRIVE_API}/files/${fileId}?alt=media`,
+        {
+            headers: {
+                Authorization: `Bearer ${await token()}`
+            }
+        }
+    );
+
+    if (!res.ok) {
+
+        throw new Error(
+            `Download media gagal (${res.status})`
+        );
+
+    }
+
+    return await res.blob();
+
 }
 
 // ── Hapus file dari Drive ────────────────────────────────
 export async function deleteFile(fileId) {
-    const res = await fetch(`${DRIVE_API}/files/${fileId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${await token()}` }
-    });
-    if (!res.ok && res.status !== 404) throw new Error("Gagal hapus file");
+
+    const res = await fetch(
+        `${DRIVE_API}/files/${fileId}`,
+        {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bearer ${await token()}`
+            }
+        }
+    );
+
+    if (!res.ok && res.status !== 404) {
+
+        throw new Error(
+            `Delete gagal (${res.status})`
+        );
+
+    }
+
+    for (const [key, value] of mediaCache.entries()) {
+        if (value.id === fileId) {
+            mediaCache.delete(key);
+            break;
+        }
+    }
+
 }
 
 // ── Sync: load semua data dari Drive ke localStorage ─────
@@ -227,4 +403,23 @@ export async function syncToDrive() {
         writeJSON("notes.json",   notes),
         writeJSON("folders.json", folders)
     ]);
+}
+
+export async function getModifiedTime(filename) {
+
+    const file = await findFile(filename);
+
+    if (!file) {
+        return null;
+    }
+
+    const meta = await driveGet(
+        `/files/${file.id}`,
+        {
+            fields: "modifiedTime"
+        }
+    );
+
+    return meta.modifiedTime;
+
 }

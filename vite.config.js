@@ -4,6 +4,18 @@ import { resolve } from "path";
 export default defineConfig({
   root: "apps",
 
+  server: {
+    port: 5173,
+    strictPort: true,
+    host: true
+  },
+
+  preview: {
+    port: 4173,
+    strictPort: true,
+    host: true
+  },
+
   build: {
     outDir: "../dist",
     emptyOutDir: true,

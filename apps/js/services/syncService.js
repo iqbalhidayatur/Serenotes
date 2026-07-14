@@ -5,6 +5,7 @@
 import { readJSON, writeJSON, uploadMedia as driveUploadMedia, downloadMedia } from "./driveService.js";
 import { isLoggedIn, getToken } from "./authService.js";
 import { getAllMedia } from "./mediaService.js";
+import { getModifiedTime } from "./driveService.js";
 
 // ── Keys localStorage ────────────────────────────────────
 const KEY_NOTES        = "serenotes_notes";
@@ -16,7 +17,22 @@ const KEY_SYNCED_MEDIA = "sn_synced_media"; // Array ID media yang sukses di-pus
 
 // ── Status sync ──────────────────────────────────────────
 let isSyncing = false;
+
+let dirty = false;
+
+let pendingSync = false;
+
+let pushTimer = null;
+
+let watchTimer = null;
+
+let lastNotesModified = null;
+
+let lastFoldersModified = null;
+
 let syncQueue = null;
+
+let watcherId = null;
 
 // ── Public API ───────────────────────────────────────────
 
@@ -24,40 +40,162 @@ let syncQueue = null;
  * Dipanggil setelah login berhasil.
  * Pull data dari Drive dan merge ke localStorage (sekali per session).
  */
-export async function pullOnLogin() {
-    if (!isLoggedIn()) return;
-    if (localStorage.getItem(KEY_PULL_DONE) === "1") return;
+export async function pullOnLogin(){
 
-    try {
+    if(!isLoggedIn()) return;
+
+    try{
+
         await pullFromDrive();
-        localStorage.setItem(KEY_PULL_DONE, "1");
-    } catch (err) {
-        console.warn("[sync] Pull on login gagal:", err.message);
+
+        localStorage.setItem(KEY_PULL_DONE,"1");
+
     }
+
+    catch(err){
+
+        console.warn(err);
+
+    }
+
 }
 
 /**
  * Tandai ada perubahan lokal. Debounce push ke Drive selama 5 detik.
  */
 export function markDirty() {
+
     if (!isLoggedIn()) return;
 
-    localStorage.setItem(KEY_DIRTY, "1");
+    dirty = true;
 
-    clearTimeout(syncQueue);
-    syncQueue = setTimeout(() => {
-        pushToDrive().catch(err =>
-            console.warn("[sync] Auto-push gagal:", err.message)
-        );
-    }, 5000);
+    clearTimeout(pushTimer);
+
+    pushTimer = setTimeout(() => {
+
+        syncNow();
+
+    },2000);
+
+}
+
+export async function syncNow() {
+
+    if (!isLoggedIn()) return;
+
+    if (isSyncing) {
+        pendingSync = true;
+        return;
+    }
+
+    isSyncing = true;
+
+    try {
+
+        // kalau ada perubahan lokal, push dulu
+        if (dirty) {
+
+            await pushToDrive();
+
+            dirty = false;
+
+        }
+
+        // baru cek apakah device lain mengubah data
+        await checkRemoteChanges();
+
+    } finally {
+
+        isSyncing = false;
+
+        if (pendingSync) {
+
+            pendingSync = false;
+
+            syncNow();
+
+        }
+
+    }
+
+}
+
+export function startWatcher(interval = 2000) {
+
+    if (watcherId) return;
+
+    watcherId = setInterval(async () => {
+
+        if (document.hidden) return;
+
+        try {
+            await checkRemoteChanges();
+
+            if (hasPendingChanges()) {
+                await pushToDrive();
+            }
+
+        } catch (e) {
+            console.error(e);
+        }
+
+    }, interval);
+
+}
+
+export function stopWatcher(){
+
+    clearInterval(watchTimer);
+
+    watchTimer=null;
+
+}
+
+async function checkRemoteChanges(){
+
+    const notesModified =
+        await getModifiedTime("notes.json");
+
+    const foldersModified =
+        await getModifiedTime("folders.json");
+
+    let changed = false;
+
+    if(
+        notesModified &&
+        notesModified!==lastNotesModified
+    ){
+
+        lastNotesModified = notesModified;
+
+        changed = true;
+
+    }
+
+    if(
+        foldersModified &&
+        foldersModified!==lastFoldersModified
+    ){
+
+        lastFoldersModified = foldersModified;
+
+        changed = true;
+
+    }
+
+    if(changed){
+
+        await pullFromDrive();
+
+    }
+
 }
 
 /**
  * Push data dari localStorage & media baru ke Google Drive.
  */
 export async function pushToDrive() {
-    if (!isLoggedIn() || isSyncing) return;
-    isSyncing = true;
+    if (!isLoggedIn()) return;
 
     try {
         // 1. Push notes + folders
@@ -81,8 +219,6 @@ export async function pushToDrive() {
     } catch (err) {
         console.warn("[sync] Push gagal:", err.message);
         dispatchSyncEvent("push", "error", err.message);
-    } finally {
-        isSyncing = false;
     }
 }
 
@@ -90,14 +226,24 @@ export async function pushToDrive() {
  * Pull data dan media dari Google Drive, lalu gabungkan ke lokal.
  */
 export async function pullFromDrive() {
-    if (!isLoggedIn() || isSyncing) return;
-    isSyncing = true;
+
+    console.log("========== PULL ==========");
+
+    if (!isLoggedIn()) {
+        console.log("NOT LOGIN");
+        return;
+    }
+
+    console.log("LOGIN OK");
 
     try {
         const [driveNotes, driveFolders] = await Promise.all([
             readJSON("notes.json"),
             readJSON("folders.json")
         ]);
+        
+        console.log("driveNotes =", driveNotes);
+        console.log("driveFolders =", driveFolders);
 
         if (driveNotes)   mergeNotes(driveNotes);
         if (driveFolders) mergeFolders(driveFolders);
@@ -110,11 +256,14 @@ export async function pullFromDrive() {
         console.log("[sync] Pull dari Drive berhasil:", new Date().toLocaleTimeString());
         dispatchSyncEvent("pull", "success");
 
+        window.dispatchEvent(
+
+            new Event("serenotes-data-changed")
+
+        );
     } catch (err) {
         console.warn("[sync] Pull gagal:", err.message);
         dispatchSyncEvent("pull", "error", err.message);
-    } finally {
-        isSyncing = false;
     }
 }
 
@@ -178,7 +327,9 @@ async function pullMediaFromDrive() {
             // Pencarian file diubah menggunakan nama presisi agar tidak salah file
             const searchRes = await fetch(
                 `https://www.googleapis.com/drive/v3/files?` +
-                `q=name+contains+'${mediaId}'+and+trashed=false` +
+                `q=name contains '${mediaId}'
+                    const driveFile = await findMediaFile(filename);
+                    and trashed=false` +
                 `&fields=files(id,name,mimeType)&spaces=drive`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );

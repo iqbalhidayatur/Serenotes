@@ -2,7 +2,7 @@ import { initTheme, getTheme, toggleTheme } from "../services/themeService.js";
 import { clearNotes } from "../services/noteService.js";
 import { clearMedia } from "../services/mediaService.js";
 import { logout, getUser, isLoggedIn } from "../services/authService.js";
-import { pushToDrive, pullFromDrive, getLastSyncTime } from "../services/syncService.js";
+import { pushToDrive, pullFromDrive, getLastSyncTime, syncNow } from "../services/syncService.js";
 
 initTheme();
 
@@ -74,8 +74,7 @@ syncNowBtn?.addEventListener("click", async () => {
     lastSyncLabel.textContent = "Menyinkronkan...";
 
     try {
-        await pushToDrive();
-        updateLastSyncLabel();
+        await syncNow();
     } catch (err) {
         lastSyncLabel.textContent = "Sync gagal. Coba lagi.";
     } finally {
@@ -94,6 +93,10 @@ logoutBtn?.addEventListener("click", async () => {
             await pushToDrive();
         } catch (_) {}
     }
+    stopWatcher();
+
+    localStorage.removeItem("sn_pull_done");
+    localStorage.removeItem("sn_dirty");
 
     logout(); // redirect ke login.html otomatis
 });

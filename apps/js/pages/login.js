@@ -7,13 +7,46 @@ import {
     initAuth,
     requestToken,
     getUser,
-    isLoggedIn
+    isLoggedIn,
+    handleLoginCallback
 }
 from "../services/authService.js";
 
 const btnLogin   = document.getElementById("btnGoogleLogin");
 const errorBox   = document.getElementById("loginError");
 const errorMsg   = document.getElementById("loginErrorMsg");
+
+await initAuth();
+
+async function initializeLogin() {
+    if (isLoggedIn()) {
+
+    try {
+            await pullOnLogin();
+        } catch (e) {
+            console.error(e);
+        }
+
+        window.location.replace("dashboard.html");
+        return;
+    }
+
+    await initAuth();
+
+    try {
+        const handled = await handleLoginCallback();
+
+        if (handled) {
+            await pullOnLogin();
+            window.location.replace("dashboard.html");
+            return;
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+initializeLogin();
 
 // Kalau sudah login, langsung ke dashboard
 if (isLoggedIn()) {
@@ -48,6 +81,9 @@ btnLogin.addEventListener("click", async () => {
         await pullOnLogin();
 
         // 4. Redirect ke dashboard
+
+        startWatcher(2000);
+
         window.location.replace("dashboard.html");
 
     } finally {

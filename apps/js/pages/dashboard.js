@@ -9,6 +9,8 @@ import {
     getDescendantFolderIds
 } from "../services/folderService.js";
 
+import { loadNotes } from "../services/noteService.js";
+
 import { rescheduleAllReminders, setupNotificationListener } from "../services/notificationService.js";
 
 // Init notifikasi saat app dibuka
@@ -18,6 +20,13 @@ rescheduleAllReminders();
 initTheme();
 
 import { getAllNotes, deleteNote, togglePin } from "../services/noteService.js";
+
+import { startWatcher } from "../services/syncService.js";
+import { isLoggedIn } from "../services/authService.js";
+
+if (isLoggedIn()) {
+    startWatcher(2000);
+}
 
 // Back button handler — pakai Capacitor global, bukan ES module import
 const { App: CapApp } = window.Capacitor?.Plugins || {};
@@ -106,6 +115,18 @@ openBtn.addEventListener("click", () => {
     overlay.classList.add("show");
     popup.classList.add("show");
 });
+
+window.addEventListener(
+
+    "serenotes-data-changed",
+
+    ()=>{
+
+        loadNotes();
+
+    }
+
+);
 
 closeBtn.addEventListener("click", closePopup);
 overlay.addEventListener("click", closePopup);

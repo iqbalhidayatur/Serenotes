@@ -31,38 +31,22 @@ export async function initAuth() {
 }
 
 // ── Request / refresh token ──────────────────────────────
-export async function requestToken() {
-
-    await initAuth();
-
+export async function requestToken(force = false) {
     const result = await GoogleSignIn.signIn();
 
-    if (!result.accessToken) {
-        throw new Error("Access token tidak diterima.");
-    }
-
-    localStorage.setItem(
-        STORAGE_KEY_TOKEN,
-        result.accessToken
-    );
+    localStorage.setItem(STORAGE_KEY_TOKEN, result.accessToken);
 
     localStorage.setItem(
         STORAGE_KEY_USER,
         JSON.stringify({
-
             name: result.displayName,
-
             email: result.email,
-
             picture: result.imageUrl,
-
             sub: result.userId
-
         })
     );
 
     return result.accessToken;
-
 }
 
 // ── Ambil token yang sudah ada (tanpa popup) ─────────────
@@ -102,4 +86,36 @@ export async function logout() {
 
     location.replace("login.html");
 
+}
+
+export async function handleLoginCallback() {
+
+    if (!window.location.hash.includes("access_token")) {
+        return false;
+    }
+
+    const result = await GoogleSignIn.handleRedirectCallback();
+
+    if (!result.accessToken) {
+        throw new Error("Access token tidak diterima.");
+    }
+
+    localStorage.setItem(
+        STORAGE_KEY_TOKEN,
+        result.accessToken
+    );
+
+    localStorage.setItem(
+        STORAGE_KEY_USER,
+        JSON.stringify({
+            name: result.displayName,
+            email: result.email,
+            picture: result.imageUrl,
+            sub: result.userId
+        })
+    );
+
+    history.replaceState({}, "", "login.html");
+
+    return true;
 }
