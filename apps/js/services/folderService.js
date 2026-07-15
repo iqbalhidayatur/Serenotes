@@ -1,3 +1,4 @@
+import { markDirty } from "./syncService.js";
 import {
     getAllNotes,
     saveAllNotes,
@@ -231,9 +232,7 @@ export function getAllFolders(){
 
 // ── Sync hook ────────────────────────────────────────────
 function notifyDirty() {
-    try {
-        import("./syncService.js").then(m => m.markDirty()).catch(() => {});
-    } catch (_) {}
+    try { markDirty(); } catch (_) {}
 }
 
 export function saveFolders(folders){

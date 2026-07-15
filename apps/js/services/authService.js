@@ -34,6 +34,13 @@ export async function initAuth() {
 export async function requestToken(force = false) {
     const result = await GoogleSignIn.signIn();
 
+    // Di Android, authorize() bisa butuh intent terpisah (hasResolution=true).
+    // Kalau itu terjadi, signIn() resolve duluan tapi accessToken masih null.
+    // Jangan simpan null — isLoggedIn() akan true tapi semua request Drive 401.
+    if (!result.accessToken) {
+        throw new Error("Access token tidak diterima dari Google. Coba login lagi.");
+    }
+
     localStorage.setItem(STORAGE_KEY_TOKEN, result.accessToken);
 
     localStorage.setItem(
@@ -61,9 +68,9 @@ export function fetchUserInfo() {
 
 // ── Cek apakah sudah login ───────────────────────────────
 export function isLoggedIn() {
-
-    return !!getToken();
-
+    const t = getToken();
+    // Guard string "null" yang bisa tersimpan dari bug lama (result.accessToken = null)
+    return !!t && t !== "null";
 }
 
 // ── Ambil data user yang tersimpan ──────────────────────

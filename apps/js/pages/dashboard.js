@@ -9,8 +9,6 @@ import {
     getDescendantFolderIds
 } from "../services/folderService.js";
 
-import { loadNotes } from "../services/noteService.js";
-
 import { rescheduleAllReminders, setupNotificationListener } from "../services/notificationService.js";
 
 // Init notifikasi saat app dibuka
@@ -21,11 +19,14 @@ initTheme();
 
 import { getAllNotes, deleteNote, togglePin } from "../services/noteService.js";
 
-import { startWatcher } from "../services/syncService.js";
-import { isLoggedIn } from "../services/authService.js";
+import { startWatcher, pullOnLogin } from "../services/syncService.js";
+import { isLoggedIn, initAuth } from "../services/authService.js";
 
 if (isLoggedIn()) {
-    startWatcher(2000);
+    // initAuth dulu supaya token siap (penting di mobile)
+    initAuth()
+        .then(() => pullOnLogin())
+        .finally(() => startWatcher(30000));
 }
 
 // Back button handler — pakai Capacitor global, bukan ES module import
@@ -120,9 +121,10 @@ window.addEventListener(
 
     "serenotes-data-changed",
 
-    ()=>{
+    () => {
 
-        loadNotes();
+        renderNotes();
+        renderRecentNotes();
 
     }
 

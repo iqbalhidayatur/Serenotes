@@ -1,204 +1,151 @@
 // ══════════════════════════════════════════════════════════
 // syncService.js — Sync localStorage ↔ Google Drive
+//
+// Strategi:
+//   markDirty()  → tandai ada perubahan lokal → debounce push
+//   startWatcher → tiap 30 detik cek Drive, pull kalau lebih baru
+//   syncNow()    → push jika ada perubahan lokal, lalu pull jika Drive lebih baru
+//
+// Kenapa mobile berbeda dari web:
+//   • Di web, Google session aktif di browser → token selalu fresh
+//   • Di Android, token expire 1 jam → perlu auto-refresh via requestToken()
+//   • Di mobile, tiap pindah halaman = module reload → variabel in-memory reset
+//   • Solusi: semua state pakai localStorage, bukan variabel JS
 // ══════════════════════════════════════════════════════════
 
-import { readJSON, writeJSON, uploadMedia as driveUploadMedia, downloadMedia } from "./driveService.js";
+import {
+    readJSON,
+    writeJSON,
+    getModifiedTime,
+    uploadMedia as driveUploadMedia,
+    downloadMedia,
+    findMediaFile
+} from "./driveService.js";
 import { isLoggedIn, getToken } from "./authService.js";
 import { getAllMedia } from "./mediaService.js";
-import { getModifiedTime } from "./driveService.js";
 
-// ── Keys localStorage ────────────────────────────────────
-const KEY_NOTES        = "serenotes_notes";
-const KEY_FOLDERS      = "serenotes_folders";
-const KEY_LAST_SYNC    = "sn_last_sync";
-const KEY_DIRTY        = "sn_dirty";
-const KEY_PULL_DONE    = "sn_pull_done";
-const KEY_SYNCED_MEDIA = "sn_synced_media"; // Array ID media yang sukses di-push ke Drive
+// ── Keys localStorage (jembatan antar halaman) ───────────
+const KEY_NOTES         = "serenotes_notes";
+const KEY_FOLDERS       = "serenotes_folders";
+const KEY_LAST_SYNC     = "sn_last_sync";
+const KEY_LAST_PUSH     = "sn_last_push";   // ISO — kapan terakhir kita push
+const KEY_DIRTY         = "sn_dirty";        // "1" = ada perubahan lokal belum di-push
+const KEY_SYNCED_MEDIA  = "sn_synced_media";
 
-// ── Status sync ──────────────────────────────────────────
-let isSyncing = false;
+// ── State in-memory (per halaman) ────────────────────────
+let isSyncing  = false;
+let syncQueued = false;
+let watcherId  = null;
+let _debounce  = null;
 
-let dirty = false;
-
-let pendingSync = false;
-
-let pushTimer = null;
-
-let watchTimer = null;
-
-let lastNotesModified = null;
-
-let lastFoldersModified = null;
-
-let syncQueue = null;
-
-let watcherId = null;
-
-// ── Public API ───────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// Public API
+// ══════════════════════════════════════════════════════════
 
 /**
- * Dipanggil setelah login berhasil.
- * Pull data dari Drive dan merge ke localStorage (sekali per session).
- */
-export async function pullOnLogin(){
-
-    if(!isLoggedIn()) return;
-
-    try{
-
-        await pullFromDrive();
-
-        localStorage.setItem(KEY_PULL_DONE,"1");
-
-    }
-
-    catch(err){
-
-        console.warn(err);
-
-    }
-
-}
-
-/**
- * Tandai ada perubahan lokal. Debounce push ke Drive selama 5 detik.
+ * Dipanggil tiap kali ada perubahan lokal (dari noteService, folderService, dll).
+ * Set flag dirty di localStorage (persist antar halaman), debounce push 1.5 detik.
  */
 export function markDirty() {
-
     if (!isLoggedIn()) return;
-
-    dirty = true;
-
-    clearTimeout(pushTimer);
-
-    pushTimer = setTimeout(() => {
-
-        syncNow();
-
-    },2000);
-
+    localStorage.setItem(KEY_DIRTY, "1");
+    clearTimeout(_debounce);
+    _debounce = setTimeout(() => _doPush(), 1500);
 }
 
-export async function syncNow() {
+/**
+ * Dipanggil saat masuk dashboard setelah login.
+ * Pull dari Drive kalau Drive lebih baru dari last sync.
+ */
+export async function pullOnLogin() {
+    if (!isLoggedIn()) return;
+    try {
+        await _doPullIfNewer();
+    } catch (err) {
+        console.warn("[sync] pullOnLogin gagal:", err.message);
+    }
+}
 
+/**
+ * Dipanggil dari tombol sync manual di settings.
+ * Push kalau ada dirty, lalu pull kalau Drive lebih baru.
+ */
+export async function syncNow() {
     if (!isLoggedIn()) return;
 
     if (isSyncing) {
-        pendingSync = true;
+        syncQueued = true;
         return;
     }
 
     isSyncing = true;
-
     try {
-
-        // kalau ada perubahan lokal, push dulu
-        if (dirty) {
-
+        // 1. Push dulu kalau ada perubahan lokal
+        if (_isDirty()) {
             await pushToDrive();
-
-            dirty = false;
-
         }
 
-        // baru cek apakah device lain mengubah data
-        await checkRemoteChanges();
+        // 2. Cek Drive — pull kalau lebih baru dari last push kita
+        await _doPullIfNewer();
 
     } finally {
-
         isSyncing = false;
-
-        if (pendingSync) {
-
-            pendingSync = false;
-
-            syncNow();
-
+        if (syncQueued) {
+            syncQueued = false;
+            setTimeout(syncNow, 300);
         }
-
     }
-
-}
-
-export function startWatcher(interval = 2000) {
-
-    if (watcherId) return;
-
-    watcherId = setInterval(async () => {
-
-        if (document.hidden) return;
-
-        try {
-            await checkRemoteChanges();
-
-            if (hasPendingChanges()) {
-                await pushToDrive();
-            }
-
-        } catch (e) {
-            console.error(e);
-        }
-
-    }, interval);
-
-}
-
-export function stopWatcher(){
-
-    clearInterval(watchTimer);
-
-    watchTimer=null;
-
-}
-
-async function checkRemoteChanges(){
-
-    const notesModified =
-        await getModifiedTime("notes.json");
-
-    const foldersModified =
-        await getModifiedTime("folders.json");
-
-    let changed = false;
-
-    if(
-        notesModified &&
-        notesModified!==lastNotesModified
-    ){
-
-        lastNotesModified = notesModified;
-
-        changed = true;
-
-    }
-
-    if(
-        foldersModified &&
-        foldersModified!==lastFoldersModified
-    ){
-
-        lastFoldersModified = foldersModified;
-
-        changed = true;
-
-    }
-
-    if(changed){
-
-        await pullFromDrive();
-
-    }
-
 }
 
 /**
- * Push data dari localStorage & media baru ke Google Drive.
+ * Background watcher — tiap interval cek apakah Drive lebih baru.
+ * Juga push kalau masih ada dirty yang tertinggal.
  */
+export function startWatcher(interval = 30000) {
+    if (watcherId) return;
+    console.log("[sync] Watcher dimulai, interval:", interval + "ms");
+
+    watcherId = setInterval(async () => {
+        if (document.hidden || !isLoggedIn()) return;
+        try {
+            if (_isDirty()) await _doPush();
+            await _doPullIfNewer();
+        } catch (err) {
+            console.warn("[sync] Watcher error:", err.message);
+        }
+    }, interval);
+}
+
+export function stopWatcher() {
+    clearInterval(watcherId);
+    watcherId = null;
+}
+
 export async function pushToDrive() {
     if (!isLoggedIn()) return;
+    await _doPush();
+}
 
+export async function pullFromDrive() {
+    if (!isLoggedIn()) return;
+    await _doPull();
+}
+
+export function getLastSyncTime() {
+    const raw = localStorage.getItem(KEY_LAST_SYNC);
+    return raw ? new Date(raw) : null;
+}
+
+// Kompatibilitas — tidak dipakai lagi tapi masih diimport di beberapa tempat
+export function hasPendingChanges() { return _isDirty(); }
+export function resetPullFlag() {}
+
+// ══════════════════════════════════════════════════════════
+// Internal — Push
+// ══════════════════════════════════════════════════════════
+
+async function _doPush() {
     try {
-        // 1. Push notes + folders
         const notes   = JSON.parse(localStorage.getItem(KEY_NOTES)   || "[]");
         const folders = JSON.parse(localStorage.getItem(KEY_FOLDERS) || "[]");
 
@@ -207,230 +154,205 @@ export async function pushToDrive() {
             writeJSON("folders.json", folders)
         ]);
 
-        // 2. Push media yang belum di-upload ke Drive
-        await pushMediaToDrive();
+        await _pushMedia();
 
-        localStorage.setItem(KEY_LAST_SYNC, new Date().toISOString());
+        const now = new Date().toISOString();
+        localStorage.setItem(KEY_LAST_SYNC, now);
+        localStorage.setItem(KEY_LAST_PUSH, now);  // catat waktu push
         localStorage.removeItem(KEY_DIRTY);
 
-        console.log("[sync] Push ke Drive berhasil:", new Date().toLocaleTimeString());
-        dispatchSyncEvent("push", "success");
+        console.log("[sync] ✅ Push berhasil:", new Date().toLocaleTimeString());
+        _dispatch("push", "success");
 
     } catch (err) {
-        console.warn("[sync] Push gagal:", err.message);
-        dispatchSyncEvent("push", "error", err.message);
+        console.warn("[sync] ❌ Push gagal:", err.message);
+        _dispatch("push", "error", err.message);
+        throw err;
     }
 }
 
-/**
- * Pull data dan media dari Google Drive, lalu gabungkan ke lokal.
- */
-export async function pullFromDrive() {
+// ══════════════════════════════════════════════════════════
+// Internal — Pull (hanya jika Drive lebih baru)
+// ══════════════════════════════════════════════════════════
 
-    console.log("========== PULL ==========");
+async function _doPullIfNewer() {
+    // Ambil modifiedTime file notes.json di Drive
+    const driveTime = await getModifiedTime("notes.json");
 
-    if (!isLoggedIn()) {
-        console.log("NOT LOGIN");
+    if (!driveTime) {
+        // File belum ada di Drive → tidak ada yang di-pull
+        console.log("[sync] notes.json belum ada di Drive");
         return;
     }
 
-    console.log("LOGIN OK");
+    // Bandingkan dengan kapan kita terakhir push
+    // (bukan updatedAt note, karena updatedAt note selalu < waktu push)
+    const lastPush = localStorage.getItem(KEY_LAST_PUSH);
+    const lastSync = localStorage.getItem(KEY_LAST_SYNC);
 
+    // Referensi waktu lokal: pakai last push kalau ada, fallback ke last sync
+    const localRef = lastPush || lastSync;
+
+    const driveMs = new Date(driveTime).getTime();
+    const localMs = localRef ? new Date(localRef).getTime() : 0;
+
+    const TOLERANCE = 5000; // 5 detik toleransi clock skew
+
+    console.log("[sync] driveTime:", driveTime, "| localRef:", localRef,
+        "| selisih:", Math.round((driveMs - localMs) / 1000) + "s");
+
+    if (driveMs - localMs > TOLERANCE) {
+        console.log("[sync] Drive lebih baru → pull");
+        await _doPull();
+    } else {
+        console.log("[sync] Sudah sinkron, skip pull");
+    }
+}
+
+async function _doPull() {
     try {
         const [driveNotes, driveFolders] = await Promise.all([
             readJSON("notes.json"),
             readJSON("folders.json")
         ]);
-        
-        console.log("driveNotes =", driveNotes);
-        console.log("driveFolders =", driveFolders);
 
-        if (driveNotes)   mergeNotes(driveNotes);
-        if (driveFolders) mergeFolders(driveFolders);
+        if (driveNotes)   _mergeNotes(driveNotes);
+        if (driveFolders) _mergeFolders(driveFolders);
 
-        // Pull media dari Drive yang dibutuhkan oleh lokal notes
-        await pullMediaFromDrive();
+        await _pullMedia();
 
-        localStorage.setItem(KEY_LAST_SYNC, new Date().toISOString());
+        const now = new Date().toISOString();
+        localStorage.setItem(KEY_LAST_SYNC, now);
+        // Update last push juga supaya watcher tidak langsung pull lagi
+        localStorage.setItem(KEY_LAST_PUSH, now);
 
-        console.log("[sync] Pull dari Drive berhasil:", new Date().toLocaleTimeString());
-        dispatchSyncEvent("pull", "success");
+        console.log("[sync] ✅ Pull berhasil:", new Date().toLocaleTimeString());
+        _dispatch("pull", "success");
 
-        window.dispatchEvent(
+        window.dispatchEvent(new Event("serenotes-data-changed"));
 
-            new Event("serenotes-data-changed")
-
-        );
     } catch (err) {
-        console.warn("[sync] Pull gagal:", err.message);
-        dispatchSyncEvent("pull", "error", err.message);
+        console.warn("[sync] ❌ Pull gagal:", err.message);
+        _dispatch("pull", "error", err.message);
+        throw err;
     }
 }
 
-// ── Media push: upload semua media baru ke Drive ─────────
-async function pushMediaToDrive() {
+// ══════════════════════════════════════════════════════════
+// Internal — Media
+// ══════════════════════════════════════════════════════════
+
+async function _pushMedia() {
     const allMedia = await getAllMedia();
     if (!allMedia.length) return;
 
-    const synced = new Set(
-        JSON.parse(localStorage.getItem(KEY_SYNCED_MEDIA) || "[]")
-    );
-
+    const synced = new Set(JSON.parse(localStorage.getItem(KEY_SYNCED_MEDIA) || "[]"));
     const toUpload = allMedia.filter(m => !synced.has(m.id));
     if (!toUpload.length) return;
 
-    console.log(`[sync] Upload ${toUpload.length} media ke Drive...`);
-
     for (const media of toUpload) {
         try {
-            const ext      = media.filename.split(".").pop() || "bin";
-            const driveName = `${media.id}.${ext}`;
-
-            await driveUploadMedia(media.file, driveName, media.mimeType);
-
+            const ext = media.filename.split(".").pop() || "bin";
+            await driveUploadMedia(media.file, `${media.id}.${ext}`, media.mimeType);
             synced.add(media.id);
             localStorage.setItem(KEY_SYNCED_MEDIA, JSON.stringify([...synced]));
-
-            console.log(`[sync] Media uploaded: ${media.filename}`);
         } catch (err) {
-            console.warn(`[sync] Gagal upload media ${media.filename}:`, err.message);
+            console.warn("[sync] Gagal upload media:", err.message);
         }
     }
 }
 
-// ── Media pull: download media dari Drive yang belum ada di lokal ──
-async function pullMediaFromDrive() {
+async function _pullMedia() {
     const notes = JSON.parse(localStorage.getItem(KEY_NOTES) || "[]");
-    const neededIds = new Set();
+    const needed = new Set();
+    notes.forEach(n => (n.media || []).forEach(m => { if (m.refId) needed.add(m.refId); }));
+    if (!needed.size) return;
 
-    notes.forEach(note => {
-        (note.media || []).forEach(m => {
-            if (m.refId) neededIds.add(m.refId);
-        });
-    });
+    const localIds = new Set((await getAllMedia()).map(m => m.id));
+    const missing  = [...needed].filter(id => !localIds.has(id));
+    if (!missing.length || !getToken()) return;
 
-    if (!neededIds.size) return;
-
-    const localMedia  = await getAllMedia();
-    const localIds    = new Set(localMedia.map(m => m.id));
-    const missingIds  = [...neededIds].filter(id => !localIds.has(id));
-
-    if (!missingIds.length) return;
-
-    console.log(`[sync] Pull ${missingIds.length} media dari Drive...`);
-
-    const token = getToken();
-    if (!token) return;
-
-    for (const mediaId of missingIds) {
+    const EXTS = ["jpg","jpeg","png","gif","webp","mp4","mov","mp3","aac","pdf","bin"];
+    for (const id of missing) {
         try {
-            // Pencarian file diubah menggunakan nama presisi agar tidak salah file
-            const searchRes = await fetch(
-                `https://www.googleapis.com/drive/v3/files?` +
-                `q=name contains '${mediaId}'
-                    const driveFile = await findMediaFile(filename);
-                    and trashed=false` +
-                `&fields=files(id,name,mimeType)&spaces=drive`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            const searchData = await searchRes.json();
-            const driveFile  = searchData.files?.[0];
-            if (!driveFile) continue;
-
-            const blob = await downloadMedia(driveFile.id);
-            const filename = driveFile.name;
-            const file     = new File([blob], filename, { type: driveFile.mimeType });
-
-            await idbSaveWithId(mediaId, file, driveFile.mimeType);
-            console.log(`[sync] Media pulled: ${filename}`);
+            let f = null;
+            for (const ext of EXTS) { f = await findMediaFile(`${id}.${ext}`); if (f) break; }
+            if (!f) continue;
+            const blob = await downloadMedia(f.id);
+            await _idbSave(id, new File([blob], f.name, { type: f.mimeType }), f.mimeType);
         } catch (err) {
-            console.warn(`[sync] Gagal pull media ${mediaId}:`, err.message);
+            console.warn("[sync] Gagal pull media:", err.message);
         }
     }
 }
 
-// ── Simpan media ke IndexedDB dengan ID spesifik ─────────
-function idbSaveWithId(id, file, mimeType) {
-    const DB_NAME   = "SerenotesDB";
-    const STORE_NAME = "media";
-
+function _idbSave(id, file, mimeType) {
     return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME);
+        const req = indexedDB.open("SerenotesDB");
         req.onsuccess = () => {
-            const db = req.result;
-            const tx = db.transaction(STORE_NAME, "readwrite");
-            tx.objectStore(STORE_NAME).put({
-                id,
-                file,
-                filename:  file.name,
-                mimeType:  mimeType || file.type,
-                size:      file.size,
-                createdAt: new Date().toISOString()
-            });
-            tx.oncomplete = () => resolve();
-            tx.onerror    = () => reject(tx.error);
+            const tx = req.result.transaction("media", "readwrite");
+            tx.objectStore("media").put({ id, file, filename: file.name,
+                mimeType: mimeType || file.type, size: file.size,
+                createdAt: new Date().toISOString() });
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
         };
         req.onerror = () => reject(req.error);
     });
 }
 
-// ── Merge helpers ────────────────────────────────────────
-function mergeNotes(driveNotes) {
-    const localNotes = JSON.parse(localStorage.getItem(KEY_NOTES) || "[]");
-    const localMap   = new Map(localNotes.map(n => [n.id, n]));
+// ══════════════════════════════════════════════════════════
+// Internal — Merge
+// ══════════════════════════════════════════════════════════
 
-    for (const driveNote of driveNotes) {
-        const localNote = localMap.get(driveNote.id);
-        if (!localNote) {
-            localMap.set(driveNote.id, driveNote);
-        } else {
-            const driveTime = new Date(driveNote.updatedAt || 0).getTime();
-            const localTime = new Date(localNote.updatedAt || 0).getTime();
-            if (driveTime > localTime) localMap.set(driveNote.id, driveNote);
+function _mergeNotes(driveNotes) {
+    const local = JSON.parse(localStorage.getItem(KEY_NOTES) || "[]");
+    const map   = new Map(local.map(n => [n.id, n]));
+    for (const dn of driveNotes) {
+        const ln = map.get(dn.id);
+        if (!ln || new Date(dn.updatedAt||0) > new Date(ln.updatedAt||0)) {
+            map.set(dn.id, dn);
         }
     }
-
-    const merged = Array.from(localMap.values())
-        .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
-
-    localStorage.setItem(KEY_NOTES, JSON.stringify(merged));
+    localStorage.setItem(KEY_NOTES, JSON.stringify(
+        [...map.values()].sort((a,b) => new Date(b.updatedAt||0) - new Date(a.updatedAt||0))
+    ));
 }
 
-function mergeFolders(driveFolders) {
-    const localFolders = JSON.parse(localStorage.getItem(KEY_FOLDERS) || "[]");
-    const localMap     = new Map(localFolders.map(f => [f.id, f]));
-
-    for (const driveFolder of driveFolders) {
-        const localFolder = localMap.get(driveFolder.id);
-        if (!localFolder) {
-            localMap.set(driveFolder.id, driveFolder);
-        } else {
-            const driveTime = new Date(driveFolder.updatedAt || 0).getTime();
-            const localTime = new Date(localFolder.updatedAt || 0).getTime();
-            if (driveTime > localTime) localMap.set(driveFolder.id, driveFolder);
+function _mergeFolders(driveFolders) {
+    const local = JSON.parse(localStorage.getItem(KEY_FOLDERS) || "[]");
+    const map   = new Map(local.map(f => [f.id, f]));
+    for (const df of driveFolders) {
+        const lf = map.get(df.id);
+        if (!lf || new Date(df.updatedAt||0) > new Date(lf.updatedAt||0)) {
+            map.set(df.id, df);
         }
     }
-
-    localStorage.setItem(KEY_FOLDERS, JSON.stringify(Array.from(localMap.values())));
+    localStorage.setItem(KEY_FOLDERS, JSON.stringify([...map.values()]));
 }
 
-// ── Utils ────────────────────────────────────────────────
-export function hasPendingChanges() {
+// ══════════════════════════════════════════════════════════
+// Internal — Utils
+// ══════════════════════════════════════════════════════════
+
+function _isDirty() {
     return localStorage.getItem(KEY_DIRTY) === "1";
 }
 
-export function getLastSyncTime() {
-    const raw = localStorage.getItem(KEY_LAST_SYNC);
-    return raw ? new Date(raw) : null;
-}
-
-export function resetPullFlag() {
-    localStorage.removeItem(KEY_PULL_DONE);
-}
-
-function dispatchSyncEvent(type, status, message = "") {
+function _dispatch(type, status, message = "") {
     window.dispatchEvent(new CustomEvent("serenotes-sync", {
         detail: { type, status, message, time: new Date().toISOString() }
     }));
 }
+
+// Flush sebelum pindah halaman (mobile: visibilitychange sering trigger)
+async function _flushOnLeave() {
+    if (!isLoggedIn() || !_isDirty()) return;
+    clearTimeout(_debounce);
+    try { await _doPush(); } catch (_) {}
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) _flushOnLeave();
+});
+window.addEventListener("pagehide", () => _flushOnLeave());

@@ -1,7 +1,9 @@
 // ══════════════════════════════════════════════════════════
 // login.js — halaman login Serenotes
 // ══════════════════════════════════════════════════════════
-import { pullOnLogin } from "../services/syncService.js";
+
+// BUG FIX #6: startWatcher dipanggil di bawah tapi tidak pernah diimport.
+import { pullOnLogin, startWatcher } from "../services/syncService.js";
 
 import {
     initAuth,
@@ -16,12 +18,14 @@ const btnLogin   = document.getElementById("btnGoogleLogin");
 const errorBox   = document.getElementById("loginError");
 const errorMsg   = document.getElementById("loginErrorMsg");
 
+// BUG FIX #7: initAuth() dipanggil 3 kali (di sini, di dalam initializeLogin(),
+// dan lagi di bawah). Cukup satu kali di awal, sisanya dihapus.
 await initAuth();
 
 async function initializeLogin() {
     if (isLoggedIn()) {
 
-    try {
+        try {
             await pullOnLogin();
         } catch (e) {
             console.error(e);
@@ -31,8 +35,7 @@ async function initializeLogin() {
         return;
     }
 
-    await initAuth();
-
+    // Tangani redirect callback OAuth (mode web)
     try {
         const handled = await handleLoginCallback();
 
@@ -43,20 +46,12 @@ async function initializeLogin() {
         }
     } catch (err) {
         console.error(err);
+        showError(err.message);
     }
 }
 
+// Jalankan init; kalau sudah login akan redirect ke dashboard
 initializeLogin();
-
-// Kalau sudah login, langsung ke dashboard
-if (isLoggedIn()) {
-    window.location.replace("dashboard.html");
-}
-
-// Init Google Identity Services
-initAuth().catch(err => {
-    showError(err.message);
-});
 
 // Klik tombol login
 btnLogin.addEventListener("click", async () => {
@@ -76,16 +71,17 @@ btnLogin.addEventListener("click", async () => {
         // Simpan nama user supaya kompatibel dengan sistem lama
         localStorage.setItem("serenotes_user", user.name);
 
-        // 3. Pull data dari Drive → merge ke localStorage
-        //    (tidak blocking — kalau gagal tetap lanjut ke dashboard)
+        // 2. Pull data dari Drive → merge ke localStorage
         await pullOnLogin();
 
+        // 3. Mulai background watcher sebelum redirect
+        startWatcher(30000);
+
         // 4. Redirect ke dashboard
-
-        startWatcher(2000);
-
         window.location.replace("dashboard.html");
 
+    } catch (err) {
+        showError(err.message);
     } finally {
         setLoading(false);
     }
@@ -94,7 +90,7 @@ btnLogin.addEventListener("click", async () => {
 function setLoading(val) {
     btnLogin.classList.toggle("loading", val);
     const textEl = btnLogin.querySelector(".btn-google-text");
-    textEl.textContent = val ? "Masuk" : "Masuk dengan Google";
+    textEl.textContent = val ? "Masuk..." : "Masuk dengan Google";
 }
 
 function showError(msg) {

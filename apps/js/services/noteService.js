@@ -1,11 +1,10 @@
+import { markDirty } from "./syncService.js";
+
 const STORAGE_KEY = "serenotes_notes";
 
-// ── Sync hook (opsional — hanya aktif kalau user login Google) ──
+// ── Sync hook ────────────────────────────────────────────
 function notifyDirty() {
-    try {
-        // Dynamic import agar tidak error kalau syncService belum ada
-        import("./syncService.js").then(m => m.markDirty()).catch(() => {});
-    } catch (_) {}
+    try { markDirty(); } catch (_) {}
 }
 
 /**
@@ -61,7 +60,8 @@ export function getAllNotes() {
     });
 
     if (changed) {
-        saveNotes(notes);
+        // Pakai silent save — migration tidak boleh trigger markDirty/push ke Drive
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
     }
 
     return notes;

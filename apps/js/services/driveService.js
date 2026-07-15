@@ -24,36 +24,91 @@ const KEY_FOLDERS = "serenotes_folders";
 let appFolderId   = null;
 let mediaFolderId = null;
 
-// ── Helper: ambil token (auto-refresh kalau perlu) ───────
+// ── Helper: ambil token, refresh kalau perlu ─────────────
 async function token() {
     let t = getToken();
     if (!t) t = await requestToken();
     return t;
 }
 
-// ── Helper: fetch wrapper dengan auth header ─────────────
+// ── Helper: silent refresh token (re-signIn tanpa popup) ─
+async function refreshToken() {
+    try {
+        console.log("[drive] Token expired, mencoba refresh...");
+        const t = await requestToken();
+        console.log("[drive] Token berhasil di-refresh");
+        return t;
+    } catch (err) {
+        // Refresh gagal → hapus token supaya isLoggedIn() false
+        // dan user diarahkan login ulang
+        localStorage.removeItem("sn_access_token");
+        throw new Error("Sesi habis. Silakan login ulang.");
+    }
+}
+
+// ── Helper: fetch GET dengan auto-retry on 401 ───────────
 async function driveGet(url, params = {}) {
     const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${DRIVE_API}${url}${q ? "?" + q : ""}`, {
+    const fullUrl = `${DRIVE_API}${url}${q ? "?" + q : ""}`;
+
+    let res = await fetch(fullUrl, {
         headers: { Authorization: `Bearer ${await token()}` }
     });
+
+    if (res.status === 401) {
+        const t = await refreshToken();
+        res = await fetch(fullUrl, {
+            headers: { Authorization: `Bearer ${t}` }
+        });
+    }
+
     if (!res.ok) throw new Error(`Drive GET error: ${res.status}`);
     return res.json();
 }
 
+// ── Helper: fetch POST dengan auto-retry on 401 ──────────
 async function drivePost(url, body, params = {}) {
     const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${DRIVE_API}${url}${q ? "?" + q : ""}`, {
+    const fullUrl = `${DRIVE_API}${url}${q ? "?" + q : ""}`;
+    const bodyStr = JSON.stringify(body);
+
+    let res = await fetch(fullUrl, {
         method: "POST",
-        headers: {
-            Authorization: `Bearer ${await token()}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
+        headers: { Authorization: `Bearer ${await token()}`, "Content-Type": "application/json" },
+        body: bodyStr
     });
+
+    if (res.status === 401) {
+        const t = await refreshToken();
+        res = await fetch(fullUrl, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+            body: bodyStr
+        });
+    }
+
     if (!res.ok) throw new Error(`Drive POST error: ${res.status}`);
     return res.json();
 }
+
+// ── Helper: raw fetch dengan auth + auto-retry on 401 ───
+async function driveFetch(url, options = {}) {
+    const makeOpts = (t) => ({
+        ...options,
+        headers: { ...options.headers, Authorization: `Bearer ${t}` }
+    });
+
+    let res = await fetch(url, makeOpts(await token()));
+
+    if (res.status === 401) {
+        const t = await refreshToken();
+        res = await fetch(url, makeOpts(t));
+    }
+
+    return res;
+}
+
+
 
 // ── Cari atau buat folder di Drive ───────────────────────
 async function findOrCreateFolder(name, parentId = null) {
@@ -189,14 +244,7 @@ export async function readJSON(filename) {
 
     if (!file) return null;
 
-    const res = await fetch(
-        `${DRIVE_API}/files/${file.id}?alt=media`,
-        {
-            headers: {
-                Authorization: `Bearer ${await token()}`
-            }
-        }
-    );
+    const res = await driveFetch(`${DRIVE_API}/files/${file.id}?alt=media`);
     console.log("readJSON", filename, file);
 
     if (!res.ok) {
@@ -223,18 +271,13 @@ export async function writeJSON(filename, data) {
         }
     );
 
-    const accessToken = await token();
-
     if (file) {
 
-        const res = await fetch(
+        const res = await driveFetch(
             `${UPLOAD_API}/files/${file.id}?uploadType=media`,
             {
                 method: "PATCH",
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: blob
             }
         );
@@ -258,11 +301,8 @@ export async function writeJSON(filename, data) {
         form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
         form.append("file", blob);
 
-        const res = await fetch(`${UPLOAD_API}/files?uploadType=multipart`, {
+        const res = await driveFetch(`${UPLOAD_API}/files?uploadType=multipart`, {
             method: "POST",
-            headers: {
-                Authorization: `Bearer ${accessToken}`
-            },
             body: form
         });
         if (!res.ok) throw new Error(`Gagal buat ${filename}`);
@@ -274,8 +314,6 @@ export async function writeJSON(filename, data) {
 export async function uploadMedia(fileBlob, filename, mimeType) {
 
     await ensureFolders();
-
-    const tokenValue = await token();
 
     const existing = await findMediaFile(filename);
 
@@ -305,15 +343,9 @@ export async function uploadMedia(fileBlob, filename, mimeType) {
 
     form.append("file", fileBlob);
 
-    const res = await fetch(
+    const res = await driveFetch(
         `${UPLOAD_API}/files?uploadType=multipart`,
-        {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${tokenValue}`
-            },
-            body: form
-        }
+        { method: "POST", body: form }
     );
 
     if (!res.ok) {
@@ -330,14 +362,7 @@ export async function uploadMedia(fileBlob, filename, mimeType) {
 // ── Download media file dari Drive ───────────────────────
 export async function downloadMedia(fileId) {
 
-    const res = await fetch(
-        `${DRIVE_API}/files/${fileId}?alt=media`,
-        {
-            headers: {
-                Authorization: `Bearer ${await token()}`
-            }
-        }
-    );
+    const res = await driveFetch(`${DRIVE_API}/files/${fileId}?alt=media`);
 
     if (!res.ok) {
 
@@ -354,14 +379,9 @@ export async function downloadMedia(fileId) {
 // ── Hapus file dari Drive ────────────────────────────────
 export async function deleteFile(fileId) {
 
-    const res = await fetch(
+    const res = await driveFetch(
         `${DRIVE_API}/files/${fileId}`,
-        {
-            method: "DELETE",
-            headers: {
-                Authorization: `Bearer ${await token()}`
-            }
-        }
+        { method: "DELETE" }
     );
 
     if (!res.ok && res.status !== 404) {

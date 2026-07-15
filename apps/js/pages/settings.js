@@ -2,7 +2,9 @@ import { initTheme, getTheme, toggleTheme } from "../services/themeService.js";
 import { clearNotes } from "../services/noteService.js";
 import { clearMedia } from "../services/mediaService.js";
 import { logout, getUser, isLoggedIn } from "../services/authService.js";
-import { pushToDrive, pullFromDrive, getLastSyncTime, syncNow } from "../services/syncService.js";
+
+// BUG FIX #8: stopWatcher dipanggil di handler logout tapi tidak pernah diimport.
+import { pushToDrive, pullFromDrive, getLastSyncTime, syncNow, stopWatcher } from "../services/syncService.js";
 
 initTheme();
 
@@ -54,6 +56,9 @@ function updateLastSyncLabel() {
 }
 updateLastSyncLabel();
 
+// Update label tiap kali sync selesai
+window.addEventListener("serenotes-sync", () => updateLastSyncLabel());
+
 // ── Dark mode ────────────────────────────────────────────
 darkModeToggle.checked = getTheme() === "dark";
 darkModeToggle.addEventListener("change", () => toggleTheme());
@@ -75,6 +80,7 @@ syncNowBtn?.addEventListener("click", async () => {
 
     try {
         await syncNow();
+        updateLastSyncLabel();
     } catch (err) {
         lastSyncLabel.textContent = "Sync gagal. Coba lagi.";
     } finally {
@@ -93,6 +99,8 @@ logoutBtn?.addEventListener("click", async () => {
             await pushToDrive();
         } catch (_) {}
     }
+
+    // stopWatcher sekarang sudah diimport dengan benar
     stopWatcher();
 
     localStorage.removeItem("sn_pull_done");
@@ -120,7 +128,7 @@ function handleBackup() {
     const url  = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href     = url;
-    link.download = `serenotes_backup_${new Date().toISOString().slice(0,10)}.json`;
+    link.download = `serenotes_backup_${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
 }
