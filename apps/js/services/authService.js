@@ -101,28 +101,56 @@ export async function handleLoginCallback() {
         return false;
     }
 
-    const result = await GoogleSignIn.handleRedirectCallback();
+    // Parse hash langsung — tidak pakai plugin Capacitor karena
+    // GoogleSignIn.handleRedirectCallback() tidak reliable di web build.
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = params.get("access_token");
 
-    if (!result.accessToken) {
-        throw new Error("Access token tidak diterima.");
+    if (!accessToken) {
+        throw new Error("Access token tidak ditemukan di URL.");
     }
 
-    localStorage.setItem(
-        STORAGE_KEY_TOKEN,
-        result.accessToken
-    );
+    // Simpan token
+    localStorage.setItem(STORAGE_KEY_TOKEN, accessToken);
 
-    localStorage.setItem(
-        STORAGE_KEY_USER,
-        JSON.stringify({
-            name: result.displayName,
-            email: result.email,
-            picture: result.imageUrl,
-            sub: result.userId
-        })
-    );
+    // Ambil info user dari id_token (JWT) kalau ada, atau fetch dari Google
+    const idToken = params.get("id_token");
+    if (idToken) {
+        try {
+            // Decode payload JWT (bagian tengah, base64url)
+            const payload = JSON.parse(
+                atob(idToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+            );
+            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify({
+                name:    payload.name    || "",
+                email:   payload.email   || "",
+                picture: payload.picture || "",
+                sub:     payload.sub     || ""
+            }));
+        } catch (_) {
+            // Fallback: fetch userinfo dari Google API
+            await _fetchAndSaveUserInfo(accessToken);
+        }
+    } else {
+        await _fetchAndSaveUserInfo(accessToken);
+    }
 
+    // Bersihkan hash dari URL
     history.replaceState({}, "", "login.html");
 
     return true;
+}
+
+async function _fetchAndSaveUserInfo(accessToken) {
+    const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) throw new Error("Gagal ambil info user.");
+    const u = await res.json();
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify({
+        name:    u.name    || "",
+        email:   u.email   || "",
+        picture: u.picture || "",
+        sub:     u.sub     || ""
+    }));
 }
