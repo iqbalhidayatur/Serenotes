@@ -22,20 +22,21 @@ export default defineConfig({
 
     rollupOptions: {
       input: {
-        index: resolve(__dirname, "apps/index.html"),
-        login: resolve(__dirname, "apps/login.html"),
-        dashboard: resolve(__dirname, "apps/dashboard.html"),
-        addNote: resolve(__dirname, "apps/add-note.html"),
-        board: resolve(__dirname, "apps/board.html"),
-        calendar: resolve(__dirname, "apps/calendar.html"),
-        category: resolve(__dirname, "apps/category.html"),
+        index:            resolve(__dirname, "apps/index.html"),
+        login:            resolve(__dirname, "apps/login.html"),
+        dashboard:        resolve(__dirname, "apps/dashboard.html"),
+        addNote:          resolve(__dirname, "apps/add-note.html"),
+        board:            resolve(__dirname, "apps/board.html"),
+        calendar:         resolve(__dirname, "apps/calendar.html"),
+        category:         resolve(__dirname, "apps/category.html"),
         categorySettings: resolve(__dirname, "apps/category-settings.html"),
-        noteDetail: resolve(__dirname, "apps/note-detail.html"),
-        reminder: resolve(__dirname, "apps/reminder.html"),
-        search: resolve(__dirname, "apps/search.html"),
-        settings: resolve(__dirname, "apps/settings.html"),
-        welcome: resolve(__dirname, "apps/welcome.html"),
-        hub: resolve(__dirname, "apps/hub.html")
+        noteDetail:       resolve(__dirname, "apps/note-detail.html"),
+        reminder:         resolve(__dirname, "apps/reminder.html"),
+        search:           resolve(__dirname, "apps/search.html"),
+        settings:         resolve(__dirname, "apps/settings.html"),
+        welcome:          resolve(__dirname, "apps/welcome.html"),
+        hub:              resolve(__dirname, "apps/hub.html"),
+        maps:             resolve(__dirname, "apps/maps.html")
       }
     }
   }
