@@ -93,22 +93,37 @@ function loadNotes() {
             note.location.label ||
             `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
-        L.marker([lat, lng], {
-            icon: noteIcon
-        })
-        .addTo(map)
-        .bindPopup(`
-            <div style="min-width:180px">
-                <strong>${title}</strong>
-                <hr style="margin:8px 0">
-                <div>
-                    📍 ${location}
-                </div>
-                <div>
-                    📅 ${date}
-                </div>
-            </div>
-        `);
+        const marker = L.marker([lat, lng], { icon: noteIcon }).addTo(map);
+
+        // Popup dengan tombol "Buka Note"
+        const popupContent = document.createElement("div");
+        popupContent.style.minWidth = "180px";
+        popupContent.innerHTML = `
+            <strong>${title}</strong>
+            <hr style="margin:8px 0">
+            <div>📍 ${location}</div>
+            <div>📅 ${date}</div>
+        `;
+
+        const btn = document.createElement("button");
+        btn.textContent = "Buka Note";
+        btn.style.cssText = `
+            margin-top: 10px;
+            width: 100%;
+            padding: 6px 0;
+            background: #4F46E5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        `;
+        btn.addEventListener("click", () => {
+            window.location.href = `note-detail.html?id=${note.id}`;
+        });
+
+        popupContent.appendChild(btn);
+        marker.bindPopup(popupContent);
 
     });
 
@@ -134,14 +149,9 @@ function loadUserLocation() {
 
             if (!userMarker) {
 
-                userMarker = L.marker(
-                    [lat, lng],
-                    {
-                        icon: userIcon
-                    }
-                )
-                .addTo(map)
-                .bindPopup("<b>Lokasi Anda</b>");
+                userMarker = L.marker([lat, lng], { icon: userIcon })
+                    .addTo(map)
+                    .bindPopup("<b>Lokasi Anda</b>");
 
             } else {
 
@@ -151,16 +161,13 @@ function loadUserLocation() {
 
             if (!accuracyCircle) {
 
-                accuracyCircle = L.circle(
-                    [lat, lng],
-                    {
-                        radius: accuracy,
-                        color: "#2563eb",
-                        fillColor: "#2563eb",
-                        fillOpacity: .12,
-                        weight: 1
-                    }
-                ).addTo(map);
+                accuracyCircle = L.circle([lat, lng], {
+                    radius: accuracy,
+                    color: "#2563eb",
+                    fillColor: "#2563eb",
+                    fillOpacity: .12,
+                    weight: 1
+                }).addTo(map);
 
             } else {
 
@@ -170,20 +177,12 @@ function loadUserLocation() {
             }
 
             if (bounds.isValid()) {
-
-                map.fitBounds(bounds, {
-                    padding: [60, 60]
-                });
-
+                map.fitBounds(bounds, { padding: [60, 60] });
             }
 
         },
 
-        error => {
-
-            console.error(error);
-
-        },
+        error => { console.error(error); },
 
         {
             enableHighAccuracy: true,
@@ -203,9 +202,5 @@ loadNotes();
 loadUserLocation();
 
 if (bounds.isValid()) {
-
-    map.fitBounds(bounds, {
-        padding: [60, 60]
-    });
-
+    map.fitBounds(bounds, { padding: [60, 60] });
 }
