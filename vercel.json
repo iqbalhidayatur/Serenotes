@@ -1,0 +1,20 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/settings", "destination": "/settings.html" },
+    { "source": "/add-note", "destination": "/add-note.html" },
+    { "source": "/note-detail", "destination": "/note-detail.html" },
+    { "source": "/category", "destination": "/category.html" },
+    { "source": "/category-settings", "destination": "/category-settings.html" },
+    { "source": "/board", "destination": "/board.html" },
+    { "source": "/calendar", "destination": "/calendar.html" },
+    { "source": "/reminder", "destination": "/reminder.html" },
+    { "source": "/search", "destination": "/search.html" },
+    { "source": "/hub", "destination": "/hub.html" },
+    { "source": "/maps", "destination": "/maps.html" },
+    { "source": "/welcome", "destination": "/welcome.html" }
+  ]
+}
