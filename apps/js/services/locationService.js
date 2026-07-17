@@ -86,8 +86,9 @@ async function reverseGeocode(latitude, longitude) {
 
     try {
 
+        // zoom=18 → detail sampai level jalan/bangunan
         const url =
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=14&addressdetails=1`;
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
 
         const res = await fetch(url, {
             headers: { "Accept": "application/json" },
@@ -99,13 +100,28 @@ async function reverseGeocode(latitude, longitude) {
         const data = await res.json();
         const addr = data.address || {};
 
-        const city =
-            addr.city || addr.town || addr.village ||
-            addr.county || addr.suburb || "";
+        // Susun label dari yang paling spesifik ke umum:
+        // jalan/gang → kelurahan/desa → kecamatan → kota → provinsi
+        const road        = addr.road || addr.pedestrian || addr.footway || "";
+        const houseNumber = addr.house_number || "";
+        const suburb      = addr.suburb || addr.neighbourhood || addr.quarter || "";
+        const village     = addr.village || addr.hamlet || "";
+        const subdistrict = addr.subdistrict || "";
+        const city        = addr.city || addr.town || addr.county || "";
+        const state       = addr.state || "";
 
-        const region = addr.state || addr.region || "";
+        // Gabung jalan + nomor (misal "Jl. Sudirman No. 5")
+        const streetPart = [road, houseNumber ? "No. " + houseNumber : ""]
+            .filter(Boolean).join(" ");
 
-        const parts = [city, region].filter(Boolean);
+        // Gabung area (misal "Kel. Dago, Kec. Coblong")
+        const areaPart = [
+            suburb   ? suburb        : "",
+            village  ? village       : "",
+            subdistrict ? subdistrict : ""
+        ].filter(Boolean).join(", ");
+
+        const parts = [streetPart, areaPart, city, state].filter(Boolean);
 
         if (parts.length) return parts.join(", ");
 
