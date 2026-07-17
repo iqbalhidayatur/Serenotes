@@ -11,6 +11,7 @@
 //           └── [uuid].mp4
 
 import { getToken, requestToken } from "./authService.js";
+import { Capacitor } from "@capacitor/core";
 
 const DRIVE_API   = "https://www.googleapis.com/drive/v3";
 const UPLOAD_API  = "https://www.googleapis.com/upload/drive/v3";
@@ -33,14 +34,23 @@ async function token() {
 
 // ── Helper: silent refresh token (re-signIn tanpa popup) ─
 async function refreshToken() {
+    const isWeb = Capacitor.getPlatform() === "web";
+
+    if (isWeb) {
+        // Di web, requestToken() melakukan full redirect ke Google —
+        // tidak bisa dipanggil saat sedang di tengah request Drive.
+        // Hapus token dan minta user login ulang secara normal.
+        localStorage.removeItem("sn_access_token");
+        throw new Error("Sesi habis. Silakan login ulang.");
+    }
+
+    // Di mobile (Android/iOS), requestToken() bisa silent re-signIn
     try {
         console.log("[drive] Token expired, mencoba refresh...");
         const t = await requestToken();
         console.log("[drive] Token berhasil di-refresh");
         return t;
     } catch (err) {
-        // Refresh gagal → hapus token supaya isLoggedIn() false
-        // dan user diarahkan login ulang
         localStorage.removeItem("sn_access_token");
         throw new Error("Sesi habis. Silakan login ulang.");
     }

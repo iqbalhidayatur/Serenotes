@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════
 
 // BUG FIX #6: startWatcher dipanggil di bawah tapi tidak pernah diimport.
-import { pullOnLogin, startWatcher } from "../services/syncService.js";
+import { startWatcher } from "../services/syncService.js";
 
 import {
     initAuth,
@@ -23,30 +23,27 @@ const errorMsg   = document.getElementById("loginErrorMsg");
 await initAuth();
 
 async function initializeLogin() {
+    // Kalau sudah punya token → langsung ke dashboard
+    // (pull dilakukan di dashboard.js, bukan di sini)
     if (isLoggedIn()) {
-
-        try {
-            await pullOnLogin();
-        } catch (e) {
-            console.error(e);
-        }
-
         window.location.replace("dashboard.html");
         return;
     }
 
-    // Tangani redirect callback OAuth (mode web)
-    try {
-        const handled = await handleLoginCallback();
-
-        if (handled) {
-            await pullOnLogin();
-            window.location.replace("dashboard.html");
-            return;
+    // Tangani redirect callback OAuth (mode web):
+    // Google redirect balik ke login.html#access_token=...
+    // Parse token dari hash, simpan, lalu redirect ke dashboard.
+    if (window.location.hash.includes("access_token")) {
+        try {
+            const handled = await handleLoginCallback();
+            if (handled) {
+                window.location.replace("dashboard.html");
+                return;
+            }
+        } catch (err) {
+            console.error(err);
+            showError(err.message);
         }
-    } catch (err) {
-        console.error(err);
-        showError(err.message);
     }
 }
 
