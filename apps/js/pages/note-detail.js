@@ -17,9 +17,14 @@ initTheme();
 
 import {
     getNoteById,
+    getAllNotes,
     createNote,
     deleteNote,
-    updateNote
+    updateNote,
+    addNoteLink,
+    removeNoteLink,
+    getLinkedNotes,
+    getBacklinks
 } from "../services/noteService.js";
 
 import {
@@ -31,14 +36,9 @@ import {
 
 import {
 
-    getFoldersByNote,
-
-    getNotesInNote,
-
     createFolder
 
-}
-from "../services/folderService.js";
+} from "../services/folderService.js";
 
 const mediaSection = document.getElementById("mediaSection");
 const reminderSection = document.getElementById("reminderSection");
@@ -90,15 +90,26 @@ document.getElementById("editorToolbar");
 const slashMenu =
 document.getElementById("slashMenu");
 
-const folderList =
-document.getElementById(
-    "noteFoldersList"
-);
+// ── Linked Notes refs ─────────────────────────────────
+const linkedNotesOut      = document.getElementById("linkedNotesOut");
+const linkedNotesIn       = document.getElementById("linkedNotesIn");
+const backlinksSection    = document.getElementById("backlinksSection");
+const btnAddLinkedNote    = document.getElementById("btnAddLinkedNote");
 
-const addFolderBtn =
-document.getElementById(
-    "btnAddFolderInNote"
-);
+// wiki-link popup
+const wikiLinkPopup       = document.getElementById("wikiLinkPopup");
+const wikiLinkInput       = document.getElementById("wikiLinkInput");
+const wikiLinkList        = document.getElementById("wikiLinkList");
+const wikiLinkCreate      = document.getElementById("wikiLinkCreate");
+const wikiLinkCreateLabel = document.getElementById("wikiLinkCreateLabel");
+
+// link-picker modal
+const linkPickerOverlay   = document.getElementById("linkPickerOverlay");
+const linkPickerInput     = document.getElementById("linkPickerInput");
+const linkPickerList      = document.getElementById("linkPickerList");
+const linkPickerCreate    = document.getElementById("linkPickerCreate");
+const linkPickerCreateLabel = document.getElementById("linkPickerCreateLabel");
+const linkPickerClose     = document.getElementById("linkPickerClose");
 
 const viewModeBtn = document.getElementById("viewModeBtn");
 
@@ -107,6 +118,8 @@ const tagDropdown   = document.getElementById("tagDropdown");
 const tagsContainer = document.getElementById("tagsContainer");
 const tagAddInput   = document.getElementById("tagAddInput");
 const tagAddBtn     = document.getElementById("tagAddBtn");
+
+const addFolderBtn = document.getElementById("addFolderBtn");
 
 let savedSelectionRange = null;
 
@@ -134,10 +147,9 @@ addFolderBtn?.addEventListener(
     createFolderInsideNote
 );
 
-const addNoteInNoteBtn = document.getElementById("btnAddNoteInNote");
-
-addNoteInNoteBtn?.addEventListener("click", () => {
-    window.location.href = `add-note.html?parentId=${note.id}&parentType=note`;
+// btnAddLinkedNote → buka link-picker modal
+btnAddLinkedNote?.addEventListener("click", () => {
+    openLinkPicker();
 });
 
 editor.addEventListener("click", (e) => {
@@ -285,110 +297,138 @@ deleteBtn.addEventListener("click", () => {
 
 }
 
-function renderChildren(){
+// ── Linked Notes: render ─────────────────────────────
+function renderLinkedNotes() {
+    if (!linkedNotesOut) return;
 
-    folderList.innerHTML = "";
+    const outgoing  = getLinkedNotes(note.id);
+    const incoming  = getBacklinks(note.id);
 
-    const folders =
-        getFoldersByNote(note.id);
-
-    const notes =
-        getNotesInNote(note.id);
-
-    if(
-        folders.length===0 &&
-        notes.length===0
-    ){
-
-        folderList.innerHTML = `
-
-            <div class="text-secondary">
-
-                Empty
-
-            </div>
-
-        `;
-
-        return;
-
+    // Outgoing
+    linkedNotesOut.innerHTML = "";
+    if (outgoing.length === 0) {
+        linkedNotesOut.innerHTML = `
+            <p class="linked-notes-empty">
+                No linked notes yet. Type <kbd>[[</kbd> in the editor or click <strong>+</strong> to link a note.
+            </p>`;
+    } else {
+        outgoing.forEach(linked => {
+            const row = document.createElement("div");
+            row.className = "linked-note-row";
+            row.dataset.id = linked.id;
+            row.innerHTML = `
+                <i class="bi bi-file-earmark-text linked-note-icon"></i>
+                <span class="linked-note-name">${linked.noteName || "Untitled"}</span>
+                <span class="linked-note-category">${linked.category || ""}</span>
+                <button class="linked-note-unlink" data-id="${linked.id}" title="Remove link">
+                    <i class="bi bi-x"></i>
+                </button>
+            `;
+            row.addEventListener("click", (e) => {
+                if (e.target.closest(".linked-note-unlink")) return;
+                window.location.href = `note-detail.html?id=${linked.id}`;
+            });
+            row.querySelector(".linked-note-unlink").addEventListener("click", (e) => {
+                e.stopPropagation();
+                removeNoteLink(note.id, linked.id);
+                // Juga hapus dari note-link blocks di editor
+                editor.querySelectorAll(`.editor-block[data-type="note-link"][data-linked-note-id="${linked.id}"]`)
+                    .forEach(b => b.remove());
+                autoSave();
+                renderLinkedNotes();
+            });
+            linkedNotesOut.appendChild(row);
+        });
     }
 
-    folders.forEach(folder=>{
-
-        folderList.innerHTML += `
-
-            <div
-                class="folder-row"
-                data-type="folder"
-                data-id="${folder.id}">
-
-                <i
-                    class="${folder.icon}"
-                    style="color:${folder.color}">
-                </i>
-
-                <span>
-
-                    ${folder.name}
-
-                </span>
-
-            </div>
-
-        `;
-
-    });
-
-    notes.forEach(child=>{
-
-        folderList.innerHTML += `
-
-            <div
-                class="folder-row"
-                data-type="note"
-                data-id="${child.id}">
-
-                <i
-                    class="bi bi-file-earmark-text">
-
-                </i>
-
-                <span>
-
-                    ${child.noteName}
-
-                </span>
-
-            </div>
-
-        `;
-
-    });
-
+    // Backlinks (incoming)
+    if (incoming.length === 0) {
+        backlinksSection.classList.add("d-none");
+    } else {
+        backlinksSection.classList.remove("d-none");
+        linkedNotesIn.innerHTML = "";
+        incoming.forEach(src => {
+            const row = document.createElement("div");
+            row.className = "linked-note-row backlink-row";
+            row.innerHTML = `
+                <i class="bi bi-file-earmark-text linked-note-icon"></i>
+                <span class="linked-note-name">${src.noteName || "Untitled"}</span>
+                <span class="linked-note-category">${src.category || ""}</span>
+            `;
+            row.addEventListener("click", () => {
+                window.location.href = `note-detail.html?id=${src.id}`;
+            });
+            linkedNotesIn.appendChild(row);
+        });
+    }
 }
 
-folderList.addEventListener("click",(e)=>{
+// ── Link Picker Modal ─────────────────────────────────
+function openLinkPicker(onSelect) {
+    linkPickerOverlay.style.display = "flex";
+    linkPickerInput.value = "";
+    renderLinkPickerList("", onSelect);
+    setTimeout(() => linkPickerInput.focus(), 50);
+}
 
-    const row =
-    e.target.closest(".folder-row");
+function closeLinkPicker() {
+    linkPickerOverlay.style.display = "none";
+}
 
-    if(!row) return;
+function renderLinkPickerList(query, onSelect) {
+    const all = getAllNotes().filter(n => n.id !== note.id);
+    const q   = query.toLowerCase().trim();
+    const filtered = q
+        ? all.filter(n => (n.noteName || "").toLowerCase().includes(q))
+        : all.slice(0, 20);
 
-    if(row.dataset.type==="folder"){
+    linkPickerList.innerHTML = "";
+    filtered.forEach(n => {
+        const item = document.createElement("div");
+        item.className = "wiki-link-item";
+        item.innerHTML = `
+            <i class="bi bi-file-earmark-text"></i>
+            <span>${n.noteName || "Untitled"}</span>
+            ${n.category ? `<small class="wiki-link-cat">${n.category}</small>` : ""}
+        `;
+        item.addEventListener("click", () => {
+            if (onSelect) {
+                onSelect(n.id, n.noteName || "Untitled");
+            } else {
+                addNoteLink(note.id, n.id);
+                renderLinkedNotes();
+            }
+            closeLinkPicker();
+        });
+        linkPickerList.appendChild(item);
+    });
 
-        window.location.href=
-            `category.html?folder=${row.dataset.id}`;
+    linkPickerCreateLabel.textContent = q
+        ? `Create "${query}"`
+        : "Create new note";
+    linkPickerCreate.onclick = () => {
+        const name = q || "Untitled";
+        const newNote = createNote({
+            noteName: name,
+            category: note.category || ""
+        });
+        if (onSelect) {
+            onSelect(newNote.id, name);
+        } else {
+            addNoteLink(note.id, newNote.id);
+            renderLinkedNotes();
+        }
+        closeLinkPicker();
+    };
+}
 
-    }
+linkPickerInput?.addEventListener("input", (e) => {
+    renderLinkPickerList(e.target.value);
+});
 
-    else{
-
-        window.location.href=
-            `note-detail.html?id=${row.dataset.id}`;
-
-    }
-
+linkPickerClose?.addEventListener("click", closeLinkPicker);
+linkPickerOverlay?.addEventListener("click", (e) => {
+    if (e.target === linkPickerOverlay) closeLinkPicker();
 });
 
 async function renderNote() {
@@ -414,8 +454,8 @@ async function renderNote() {
     applyTitleCollapsedState(!!note.titleCollapsed);
 
     renderBlocks();
-    
-    renderChildren();
+
+    renderLinkedNotes();
 
     noteDate.textContent = formatDate(note.date);
 
@@ -637,6 +677,8 @@ function createBlock(block) {
 
     if (block.type === "note-link") {
         renderNoteLinkBlock(div, block.linkedNoteId);
+        // Pastikan linkedNoteId terdaftar di linkedNoteIds (idempotent)
+        if (block.linkedNoteId) addNoteLink(note.id, block.linkedNoteId);
         initBlockDrag(div);
         editor.appendChild(div);
         return;
@@ -1128,30 +1170,18 @@ function applyBlockType(block, type) {
 }
 
 function createNoteLinkBlock(block) {
+    // Buka link picker, kalau cancel → block jadi paragraph kosong
+    block.dataset.type = "paragraph";
+    block.className = "editor-block paragraph";
 
-    const name = prompt("Note name", "Untitled");
-
-    // User cancel → block dikembalikan jadi paragraph kosong
-    if (name === null) {
-        block.dataset.type = "paragraph";
-        block.className = "editor-block paragraph";
+    openLinkPicker((linkedId, linkedName) => {
+        // Tambah ke linkedNoteIds
+        addNoteLink(note.id, linkedId);
+        // Render block sebagai note-link
+        renderNoteLinkBlock(block, linkedId);
+        renderLinkedNotes();
         autoSave();
-        return;
-    }
-
-    const childNote = createNote({
-        noteName: name.trim() || "Untitled",
-        parentId: note.id,
-        parentType: "note",
-        category: note.category || ""
     });
-
-    renderNoteLinkBlock(block, childNote.id);
-
-    renderChildren(); // biar konsisten dengan list "Sub-pages" di bawah
-
-    autoSave();
-
 }
 
 function renderNoteLinkBlock(div, linkedNoteId) {
@@ -1263,6 +1293,150 @@ function detectSlash(e){
 
 }
 
+// ── [[ Wiki-link popup state ──────────────────────────
+let wikiLinkAnchorBlock  = null;
+let wikiLinkAnchorOffset = 0; // offset of the first "[" in the text node
+
+function showWikiLinkPopup(block) {
+    wikiLinkAnchorBlock = block;
+    wikiLinkInput.value = "";
+    renderWikiLinkList("");
+    wikiLinkPopup.style.display = "block";
+
+    // Position below the caret
+    const sel = window.getSelection();
+    if (sel.rangeCount) {
+        const rect = sel.getRangeAt(0).getBoundingClientRect();
+        const scrollY = window.scrollY;
+        let top  = rect.bottom + scrollY + 4;
+        let left = rect.left;
+        const popupW = 280;
+        if (left + popupW > window.innerWidth - 8) left = window.innerWidth - popupW - 8;
+        wikiLinkPopup.style.top  = `${top}px`;
+        wikiLinkPopup.style.left = `${left}px`;
+    }
+
+    setTimeout(() => wikiLinkInput.focus(), 30);
+}
+
+function closeWikiLinkPopup() {
+    wikiLinkPopup.style.display = "none";
+    wikiLinkAnchorBlock = null;
+}
+
+function renderWikiLinkList(query) {
+    const all = getAllNotes().filter(n => n.id !== note.id);
+    const q   = query.toLowerCase().trim();
+    const filtered = q
+        ? all.filter(n => (n.noteName || "").toLowerCase().includes(q))
+        : all.slice(0, 15);
+
+    wikiLinkList.innerHTML = "";
+    filtered.forEach(n => {
+        const item = document.createElement("div");
+        item.className = "wiki-link-item";
+        item.innerHTML = `
+            <i class="bi bi-file-earmark-text"></i>
+            <span>${n.noteName || "Untitled"}</span>
+            ${n.category ? `<small class="wiki-link-cat">${n.category}</small>` : ""}
+        `;
+        item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            insertWikiLink(n.id, n.noteName || "Untitled");
+        });
+        wikiLinkList.appendChild(item);
+    });
+
+    wikiLinkCreateLabel.textContent = q ? `Create "${query}"` : "Create new note";
+}
+
+function insertWikiLink(linkedNoteId, linkedNoteTitle) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    const node = range.startContainer;
+
+    // Pastikan kita bekerja pada TEXT_NODE
+    if (node.nodeType !== Node.TEXT_NODE) return;
+
+    const textContent = node.textContent;
+    const caretOffset = range.startOffset;
+
+    // Cari posisi '[[' terakhir sebelum posisi kursor
+    const lastTriggerIndex = textContent.lastIndexOf("[[", caretOffset);
+
+    if (lastTriggerIndex !== -1) {
+        // --- FIX SAFETY CHECK ---
+        // 1. Pastikan startOffset tidak negatif
+        const safeStartOffset = Math.max(0, lastTriggerIndex);
+        
+        // 2. Pastikan endOffset tidak melebihi panjang string aktual
+        const safeEndOffset = Math.min(textContent.length, caretOffset);
+
+        try {
+            // Atur Range secara aman
+            range.setStart(node, safeStartOffset);
+            range.setEnd(node, safeEndOffset);
+
+            // Hapus teks trigger (misal: "[[catatan")
+            range.deleteContents();
+
+            // Buat elemen Link Baru
+            const linkElement = document.createElement("a");
+            linkElement.className = "wiki-link";
+            linkElement.dataset.id = linkedNoteId;
+            linkElement.href = `note-detail.html?id=${linkedNoteId}`;
+            linkElement.textContent = `[[${linkedNoteTitle}]]`;
+            linkElement.contentEditable = "false"; // Agar tidak sengaja teredit di wysiwyg
+
+            // Sisipkan link ke posisi kursor
+            range.insertNode(linkElement);
+
+            // Geser kursor ke setelah link yang baru dibuat
+            range.setStartAfter(linkElement);
+            range.setEndAfter(linkElement);
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            // 👇 TAMBAHIN DUA BARIS INI BOS 👇
+            addNoteLink(note.id, linkedNoteId); 
+            renderLinkedNotes(); 
+
+            autoSave();
+        } catch (err) {
+            console.error("Gagal melakukan setStart/Range:", err);
+        }
+    }
+
+    // Tutup popup wiki link
+    if (wikiLinkPopup) wikiLinkPopup.classList.remove("open");
+}
+
+wikiLinkInput?.addEventListener("input", (e) => {
+    renderWikiLinkList(e.target.value);
+});
+
+wikiLinkInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); closeWikiLinkPopup(); }
+    if (e.key === "Enter") {
+        e.preventDefault();
+        const first = wikiLinkList.querySelector(".wiki-link-item");
+        if (first) first.dispatchEvent(new MouseEvent("mousedown"));
+    }
+});
+
+wikiLinkCreate?.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    const query = wikiLinkInput.value.trim() || "Untitled";
+    const newNote = createNote({ noteName: query, category: note.category || "" });
+    insertWikiLink(newNote.id, query);
+});
+
+document.addEventListener("click", (e) => {
+    if (!wikiLinkPopup.contains(e.target)) closeWikiLinkPopup();
+});
+
 function detectSlashFromInput() {
     const selection = window.getSelection();
     
@@ -1288,6 +1462,27 @@ function detectSlashFromInput() {
     preRange.setEnd(range.startContainer, range.startOffset);
     const beforeCaret = preRange.toString();
 
+    // ── [[ wiki-link trigger ──────────────────────────
+    const lastDoubleBracket = beforeCaret.lastIndexOf("[[");
+    if (lastDoubleBracket !== -1) {
+        const afterBracket = beforeCaret.substring(lastDoubleBracket + 2);
+        // hanya tampilkan jika belum ada spasi setelah [[
+        if (!/\s/.test(afterBracket)) {
+            slashMenu.classList.remove("show");
+            showWikiLinkPopup(block);
+            // Update search query sesuai yang sudah diketik
+            wikiLinkInput.value = afterBracket;
+            renderWikiLinkList(afterBracket);
+            return;
+        }
+    }
+
+    // Jika wiki popup terbuka tapi [[ sudah tidak ada → tutup
+    if (wikiLinkPopup.style.display !== "none" && lastDoubleBracket === -1) {
+        closeWikiLinkPopup();
+    }
+
+    // ── / slash trigger ───────────────────────────────
     const lastSlash = beforeCaret.lastIndexOf("/");
 
     if (lastSlash === -1) {

@@ -183,31 +183,28 @@
         <div id="reminderContainer"></div>
     </section>
 
-    <section id="noteFoldersSection" class="mt-5">
+    <!-- Linked Notes Section -->
+    <section id="linkedNotesSection" class="mt-5">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
-
-            <h5 class="mb-0">Sub-pages</h5>
-
-            <div class="d-flex gap-2 sub-pages">
-
-                <button
-                    id="btnAddNoteInNote"
-                    class="btn btn-outline-primary rounded-pill">
-                    <i class="bi bi-file-earmark-plus"></i>
-                </button>
-
-                <button
-                    id="btnAddFolderInNote"
-                    class="btn btn-primary rounded-pill">
-                    <i class="bi bi-folder-plus"></i>
-                </button>
-
-            </div>
-
+        <div class="linked-notes-header">
+            <span class="linked-notes-title">
+                <i class="bi bi-link-45deg"></i> Linked Notes
+            </span>
+            <button id="btnAddLinkedNote" class="btn-link-add" title="Link existing note or create new">
+                <i class="bi bi-plus-lg"></i>
+            </button>
         </div>
 
-        <div id="noteFoldersList"></div>
+        <!-- Outgoing links -->
+        <div id="linkedNotesOut" class="linked-notes-group"></div>
+
+        <!-- Backlinks (incoming) -->
+        <div id="backlinksSection" class="mt-3 d-none">
+            <p class="linked-notes-sublabel">
+                <i class="bi bi-arrow-return-left"></i> Mentioned in
+            </p>
+            <div id="linkedNotesIn"></div>
+        </div>
 
     </section>
 
@@ -217,33 +214,26 @@
 </main>
 
 <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item active">
+            <i class="bi bi-house-fill"></i>
+        </a>
 
-    <a
-        href="dashboard.html"
-        class="nav-item active"
-    >
-        <i class="bi bi-house-fill"></i>
-    </a>
+        <a href="hub.html" class="nav-item">
+            <i class="bi bi-grid-fill"></i>
+        </a>
 
-    <a href="hub.html" class="nav-item">
-        <i class="bi bi-grid-fill"></i>
-    </a>
+        <a class="nav-item add-note" id="btnAddNote">
+            <i class="bi bi-plus-circle-fill"></i>
+        </a>
 
-    <a
-        href="category.html"
-        class="nav-item"
-    >
-        <i class="bi bi-list-ul"></i>
-    </a>
-
-    <a
-        href="settings.html"
-        class="nav-item"
-    >
-        <i class="bi bi-gear-fill"></i>
-    </a>
-
-</nav>
+        <a href="category.html" class="nav-item">
+            <i class="bi bi-list-ul"></i>
+        </a>
+        
+        <a href="settings.html" class="nav-item">
+            <i class="bi bi-gear-fill"></i>
+        </a>
+    </nav>
 
 <div id="editorToolbar" class="editor-toolbar">
 
@@ -323,6 +313,51 @@
         <i class="bi bi-file-earmark-text"></i> Note
     </button>
 
+</div>
+
+<!-- [[ Autocomplete popup -->
+<div id="wikiLinkPopup" class="wiki-link-popup" style="display:none">
+    <div class="wiki-link-search-wrap">
+        <i class="bi bi-search wiki-link-search-icon"></i>
+        <input
+            id="wikiLinkInput"
+            class="wiki-link-input"
+            type="text"
+            placeholder="Search or create note..."
+            autocomplete="off"
+            spellcheck="false"
+        >
+    </div>
+    <div id="wikiLinkList" class="wiki-link-list"></div>
+    <button id="wikiLinkCreate" class="wiki-link-create-btn">
+        <i class="bi bi-file-earmark-plus"></i>
+        <span id="wikiLinkCreateLabel">Create new note</span>
+    </button>
+</div>
+
+<!-- Link-note picker (for "+ Link" button in Linked Notes section) -->
+<div id="linkPickerOverlay" class="link-picker-overlay" style="display:none">
+    <div class="link-picker-modal">
+        <div class="link-picker-header">
+            <span>Link a note</span>
+            <button id="linkPickerClose" class="header-btn"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="wiki-link-search-wrap" style="margin:12px 12px 0">
+            <i class="bi bi-search wiki-link-search-icon"></i>
+            <input
+                id="linkPickerInput"
+                class="wiki-link-input"
+                type="text"
+                placeholder="Search or create note..."
+                autocomplete="off"
+            >
+        </div>
+        <div id="linkPickerList" class="wiki-link-list" style="max-height:260px"></div>
+        <button id="linkPickerCreate" class="wiki-link-create-btn" style="border-top:1px solid var(--border)">
+            <i class="bi bi-file-earmark-plus"></i>
+            <span id="linkPickerCreateLabel">Create new note</span>
+        </button>
+    </div>
 </div>
 
 <script

@@ -124,7 +124,7 @@ header {
     border: none;
     border-bottom: 1px solid var(--border-light);
     outline: none;
-    padding: 10px 10px;
+    padding: 10px 20px;
     height: 70px;
 }
 
@@ -4971,4 +4971,359 @@ mark{
 #map {
     width: 100%;
     height: 100%;
+}
+/* ══════════════════════════════════════════════════════
+   LINKED NOTES SECTION
+══════════════════════════════════════════════════════ */
+
+#linkedNotesSection {
+    padding-bottom: 80px;
+}
+
+.linked-notes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.linked-notes-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary, #111);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.linked-notes-title i {
+    font-size: 1.1rem;
+    color: var(--bs-primary, #4F46E5);
+}
+
+.btn-link-add {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px solid var(--bs-primary, #4F46E5);
+    background: transparent;
+    color: var(--bs-primary, #4F46E5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+
+.btn-link-add:hover {
+    background: var(--bs-primary, #4F46E5);
+    color: #fff;
+}
+
+.linked-notes-sublabel {
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--text-muted, #9ca3af);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.linked-notes-empty {
+    font-size: .85rem;
+    color: var(--text-muted, #9ca3af);
+    padding: 12px 0 4px;
+    margin: 0;
+}
+
+.linked-notes-empty kbd {
+    background: var(--bs-light, #f3f4f6);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: .78rem;
+    color: var(--text-primary, #111);
+}
+
+.linked-note-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: background .15s;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+[data-theme="dark"] .linked-note-row {
+    border-color: rgba(255,255,255,.1);
+}
+
+.linked-note-row:hover {
+    background: var(--bs-light, #f9fafb);
+}
+
+[data-theme="dark"] .linked-note-row:hover {
+    background: rgba(255,255,255,.06);
+}
+
+.backlink-row {
+    border-style: dashed;
+    opacity: .85;
+}
+
+.linked-note-icon {
+    color: var(--bs-primary, #4F46E5);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.linked-note-name {
+    flex: 1;
+    font-size: .9rem;
+    font-weight: 500;
+    color: var(--text-primary, #111);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.linked-note-category {
+    font-size: .75rem;
+    color: var(--text-muted, #9ca3af);
+    flex-shrink: 0;
+}
+
+.linked-note-unlink {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: var(--text-muted, #9ca3af);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s, color .15s;
+    flex-shrink: 0;
+}
+
+.linked-note-row:hover .linked-note-unlink {
+    opacity: 1;
+}
+
+.linked-note-unlink:hover {
+    color: #ef4444;
+}
+
+/* Note-link block inside editor */
+.editor-block.note-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    background: var(--bs-light, #f9fafb);
+    cursor: pointer;
+    color: var(--bs-primary, #4F46E5);
+    font-size: .9rem;
+    font-weight: 500;
+    margin: 4px 0;
+    text-decoration: none;
+    transition: background .15s;
+}
+
+[data-theme="dark"] .editor-block.note-link {
+    background: rgba(79, 70, 229, .08);
+    border-color: rgba(79, 70, 229, .25);
+    color: #a5b4fc;
+}
+
+.editor-block.note-link:hover {
+    background: #ede9fe;
+}
+
+[data-theme="dark"] .editor-block.note-link:hover {
+    background: rgba(79, 70, 229, .18);
+}
+
+.editor-block.note-link i {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════
+   [[ WIKI-LINK POPUP
+══════════════════════════════════════════════════════ */
+
+.wiki-link-popup {
+    position: absolute;
+    z-index: 9999;
+    width: 280px;
+    background: var(--bs-white, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.14);
+    overflow: hidden;
+}
+
+[data-theme="dark"] .wiki-link-popup {
+    background: #1e1e2e;
+    border-color: rgba(255,255,255,.12);
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+
+.wiki-link-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+[data-theme="dark"] .wiki-link-search-wrap {
+    border-bottom-color: rgba(255,255,255,.1);
+}
+
+.wiki-link-search-icon {
+    color: var(--text-muted, #9ca3af);
+    font-size: .9rem;
+    flex-shrink: 0;
+}
+
+.wiki-link-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: .9rem;
+    color: var(--text-primary, #111);
+}
+
+[data-theme="dark"] .wiki-link-input {
+    color: #e2e8f0;
+}
+
+.wiki-link-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.wiki-link-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: .875rem;
+    color: var(--text-primary, #111);
+    transition: background .12s;
+}
+
+[data-theme="dark"] .wiki-link-item {
+    color: #e2e8f0;
+}
+
+.wiki-link-item:hover {
+    background: var(--bs-light, #f3f4f6);
+}
+
+[data-theme="dark"] .wiki-link-item:hover {
+    background: rgba(255,255,255,.07);
+}
+
+.wiki-link-item i {
+    color: var(--bs-primary, #4F46E5);
+    font-size: .95rem;
+    flex-shrink: 0;
+}
+
+.wiki-link-item span {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wiki-link-cat {
+    font-size: .72rem;
+    color: var(--text-muted, #9ca3af);
+    flex-shrink: 0;
+    background: var(--bs-light, #f3f4f6);
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+[data-theme="dark"] .wiki-link-cat {
+    background: rgba(255,255,255,.08);
+}
+
+.wiki-link-create-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    font-size: .875rem;
+    color: var(--bs-primary, #4F46E5);
+    cursor: pointer;
+    text-align: left;
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+    transition: background .12s;
+}
+
+[data-theme="dark"] .wiki-link-create-btn {
+    color: #a5b4fc;
+    border-top-color: rgba(255,255,255,.1);
+}
+
+.wiki-link-create-btn:hover {
+    background: #ede9fe;
+}
+
+[data-theme="dark"] .wiki-link-create-btn:hover {
+    background: rgba(79,70,229,.15);
+}
+
+/* Link Picker Modal */
+.link-picker-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 9998;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.link-picker-modal {
+    background: var(--bs-white, #fff);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-width: 520px;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+[data-theme="dark"] .link-picker-modal {
+    background: #1e1e2e;
+}
+
+.link-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 0;
+    font-weight: 600;
+    font-size: .95rem;
+    color: var(--text-primary, #111);
+}
+
+[data-theme="dark"] .link-picker-header {
+    color: #e2e8f0;
 }

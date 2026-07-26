@@ -4,7 +4,7 @@ import { clearMedia } from "../services/mediaService.js";
 import { logout, getUser, isLoggedIn } from "../services/authService.js";
 
 // BUG FIX #8: stopWatcher dipanggil di handler logout tapi tidak pernah diimport.
-import { pushToDrive, pullFromDrive, getLastSyncTime, syncNow, stopWatcher } from "../services/syncService.js";
+import { pushToDrive, pullFromDrive, forcePullFromDrive, getLastSyncTime, syncNow, stopWatcher } from "../services/syncService.js";
 
 initTheme();
 
@@ -27,19 +27,33 @@ const lastSyncLabel = document.getElementById("lastSyncLabel");
 const accountName  = document.getElementById("accountName");
 const accountEmail = document.getElementById("accountEmail");
 
-// ── Profile ──────────────────────────────────────────────
-const userName = localStorage.getItem("serenotes_user") || "User";
-if (profileName)  profileName.textContent  = userName;
-if (profileGreet) profileGreet.textContent = `Welcome back, ${userName}! 👋`;
-
-// ── Account info ─────────────────────────────────────────
+// ── User info ────────────────────────────────────────────
 const user = getUser();
+
 if (user) {
-    if (accountName)  accountName.textContent  = user.name  || "-";
-    if (accountEmail) accountEmail.textContent = user.email || "-";
+    if (profileName)
+        profileName.textContent = user.name || "User";
+
+    if (profileGreet)
+        profileGreet.textContent = `Welcome back, ${user.name || "User"}! 👋`;
+
+    if (accountName)
+        accountName.textContent = user.name || "-";
+
+    if (accountEmail)
+        accountEmail.textContent = user.email || "-";
 } else {
-    if (accountName)  accountName.textContent  = "Belum login";
-    if (accountEmail) accountEmail.textContent = "Login dengan Google untuk sync";
+    if (profileName)
+        profileName.textContent = "User";
+
+    if (profileGreet)
+        profileGreet.textContent = "Welcome back!";
+
+    if (accountName)
+        accountName.textContent = "Belum login";
+
+    if (accountEmail)
+        accountEmail.textContent = "Login dengan Google untuk sync";
 }
 
 // ── Last sync label ──────────────────────────────────────
@@ -86,6 +100,32 @@ syncNowBtn?.addEventListener("click", async () => {
     } finally {
         icon.className = "bi bi-arrow-repeat";
         syncNowBtn.disabled = false;
+    }
+});
+
+// ── Force pull dari Drive ─────────────────────────────────
+const forcePullBtn = document.getElementById("forcePullBtn");
+forcePullBtn?.addEventListener("click", async () => {
+    if (!isLoggedIn()) {
+        alert("Login dengan Google dulu.");
+        return;
+    }
+
+    if (!confirm("Ambil semua data dari Google Drive?\nData lokal yang ada akan digabung (data Drive menang jika konflik).")) return;
+
+    const icon = forcePullBtn.querySelector("i");
+    icon.className = "bi bi-arrow-repeat spin";
+    forcePullBtn.disabled = true;
+
+    try {
+        await forcePullFromDrive();
+        alert("✅ Berhasil mengambil data dari Drive.");
+        window.location.href = "dashboard.html";
+    } catch (err) {
+        alert("❌ Gagal: " + err.message);
+    } finally {
+        icon.className = "bi bi-cloud-arrow-down";
+        forcePullBtn.disabled = false;
     }
 });
 

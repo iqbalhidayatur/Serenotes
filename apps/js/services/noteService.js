@@ -57,11 +57,23 @@ export function getAllNotes() {
 
         }
 
+        // Init linkedNoteIds jika belum ada
+        if (!Array.isArray(note.linkedNoteIds)) {
+            note.linkedNoteIds = [];
+            changed = true;
+        }
+
     });
 
     if (changed) {
         // Pakai silent save — migration tidak boleh trigger markDirty/push ke Drive
         localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    }
+
+    // Migrasi sub-notes → linked notes (satu kali, idempotent)
+    if (!localStorage.getItem("serenotes_subnotes_migrated")) {
+        migrateSubNotesToLinkedNotes();
+        localStorage.setItem("serenotes_subnotes_migrated", "1");
     }
 
     return notes;
@@ -501,4 +513,103 @@ export function saveUpdatedNote(updatedNote){
 
     return true;
 
+}
+// ══════════════════════════════════════════════════════════════
+// LINKED NOTES (Relation / Backlinks)
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Migrasi satu kali: note yang parentType === "note" diubah jadi
+ * linked note (linkedNoteIds di parent) dan dilepas dari parentId.
+ * Dipanggil di getAllNotes() sebagai bagian migration pipeline.
+ */
+function migrateSubNotesToLinkedNotes() {
+    const notes = JSON.parse(localStorage.getItem("serenotes_notes") || "[]");
+    let changed = false;
+
+    // Kumpulkan semua sub-notes (parentType === "note")
+    notes.forEach(note => {
+        if (note.parentType === "note" && note.parentId) {
+            const parent = notes.find(n => n.id === note.parentId);
+            if (!parent) return;
+
+            // Inisialisasi linkedNoteIds di parent jika belum ada
+            if (!Array.isArray(parent.linkedNoteIds)) {
+                parent.linkedNoteIds = [];
+            }
+
+            // Tambahkan ke linkedNoteIds parent jika belum ada
+            if (!parent.linkedNoteIds.includes(note.id)) {
+                parent.linkedNoteIds.push(note.id);
+                changed = true;
+            }
+
+            // Lepaskan sub-note dari parent → jadi root note
+            note.parentId   = null;
+            note.parentType = null;
+            note.folderId   = null;
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        localStorage.setItem("serenotes_notes", JSON.stringify(notes));
+    }
+}
+
+/**
+ * Tambahkan relasi: note `fromId` me-link ke note `toId`.
+ * Menyimpan di linkedNoteIds milik `fromId`.
+ */
+export function addNoteLink(fromId, toId) {
+    const notes = JSON.parse(localStorage.getItem("serenotes_notes") || "[]");
+    const from  = notes.find(n => n.id === fromId);
+    if (!from) return false;
+
+    if (!Array.isArray(from.linkedNoteIds)) from.linkedNoteIds = [];
+    if (from.linkedNoteIds.includes(toId)) return true; // sudah ada
+
+    from.linkedNoteIds.push(toId);
+    from.updatedAt = new Date().toISOString();
+    localStorage.setItem("serenotes_notes", JSON.stringify(notes));
+    try { markDirty(); } catch(_) {}
+    return true;
+}
+
+/**
+ * Hapus relasi: note `fromId` tidak lagi me-link ke `toId`.
+ */
+export function removeNoteLink(fromId, toId) {
+    const notes = JSON.parse(localStorage.getItem("serenotes_notes") || "[]");
+    const from  = notes.find(n => n.id === fromId);
+    if (!from || !Array.isArray(from.linkedNoteIds)) return false;
+
+    from.linkedNoteIds = from.linkedNoteIds.filter(id => id !== toId);
+    from.updatedAt = new Date().toISOString();
+    localStorage.setItem("serenotes_notes", JSON.stringify(notes));
+    try { markDirty(); } catch(_) {}
+    return true;
+}
+
+/**
+ * Ambil notes yang di-link OLEH note `fromId` (outgoing links).
+ */
+export function getLinkedNotes(fromId) {
+    const notes = JSON.parse(localStorage.getItem("serenotes_notes") || "[]");
+    const from  = notes.find(n => n.id === fromId);
+    if (!from || !Array.isArray(from.linkedNoteIds)) return [];
+
+    return from.linkedNoteIds
+        .map(id => notes.find(n => n.id === id))
+        .filter(Boolean);
+}
+
+/**
+ * Ambil notes yang ME-LINK ke note `toId` (backlinks / incoming).
+ */
+export function getBacklinks(toId) {
+    const notes = JSON.parse(localStorage.getItem("serenotes_notes") || "[]");
+    return notes.filter(n =>
+        Array.isArray(n.linkedNoteIds) && n.linkedNoteIds.includes(toId)
+    );
 }

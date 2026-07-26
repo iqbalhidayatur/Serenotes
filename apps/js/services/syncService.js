@@ -60,9 +60,37 @@ export function markDirty() {
 export async function pullOnLogin() {
     if (!isLoggedIn()) return;
     try {
+        // Kalau lokal kosong, bersihkan timestamp stale supaya
+        // _doPullIfNewer tidak skip karena localRef lama
+        const localNotes = JSON.parse(localStorage.getItem(KEY_NOTES) || "[]");
+        if (localNotes.length === 0) {
+            localStorage.removeItem(KEY_LAST_PUSH);
+            localStorage.removeItem(KEY_LAST_SYNC);
+        }
         await _doPullIfNewer();
     } catch (err) {
         console.warn("[sync] pullOnLogin gagal:", err.message);
+    }
+}
+
+/**
+ * Force pull dari Drive tanpa cek timestamp — untuk kasus
+ * "data lokal hilang / saya yakin Drive lebih baru".
+ * Dipanggil dari tombol di settings atau setelah user hapus data lokal.
+ */
+export async function forcePullFromDrive() {
+    if (!isLoggedIn()) return;
+
+    // Reset timestamp supaya _doPull langsung jalan
+    localStorage.removeItem(KEY_LAST_PUSH);
+    localStorage.removeItem(KEY_LAST_SYNC);
+
+    console.log("[sync] Force pull dimulai...");
+    try {
+        await _doPull();
+    } catch (err) {
+        console.warn("[sync] Force pull gagal:", err.message);
+        throw err;
     }
 }
 
@@ -182,6 +210,16 @@ async function _doPullIfNewer() {
     if (!driveTime) {
         // File belum ada di Drive → tidak ada yang di-pull
         console.log("[sync] notes.json belum ada di Drive");
+        return;
+    }
+
+    // ── Cek kondisi "lokal kosong" dulu sebelum perbandingan waktu ──
+    // Kalau notes lokal kosong tapi Drive punya file → selalu pull,
+    // apapun timestamp-nya (handles: clear localStorage, login di device baru)
+    const localNotes = JSON.parse(localStorage.getItem(KEY_NOTES) || "[]");
+    if (localNotes.length === 0) {
+        console.log("[sync] Lokal kosong → force pull dari Drive");
+        await _doPull();
         return;
     }
 
